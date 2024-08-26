@@ -16,6 +16,8 @@
 *.dylib
 *.dll
 
+!glfw3*.dll
+
 # Fortran module files
 *.mod
 *.smod
@@ -26,7 +28,14 @@
 *.a
 *.lib
 
+!glfw3*.lib
+
 # Executables
 *.exe
 *.out
 *.app
+/.vs/VulVoxOptimizationProject
+
+# Build directories
+/x64
+/VulVoxOptimizationProject/x64
