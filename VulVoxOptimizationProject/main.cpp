@@ -1,4 +1,5 @@
 #define GLFW_INCLUDE_VULKAN
+#define GLFW_DLL
 #include <GLFW/glfw3.h>
 
 #include <vulkan/vk_enum_string_helper.h> //for error code conversion
@@ -10,6 +11,7 @@
 #include <map>
 #include <cstring>
 #include <optional>
+#include <set>
 
 #include "utils.h"
 
@@ -40,10 +42,14 @@ private:
     void init_vulkan()
     {
         create_instance();
+        create_surface();
         pick_physical_device();
         create_logical_device();
     }
 
+    /// <summary>
+    /// Create a vulkan instance and connect it to a glfw window
+    /// </summary>
     void create_instance()
     {
         if (enableValidationLayers && !check_validation_layer_support())
@@ -106,6 +112,17 @@ private:
         }
     }
 
+    void create_surface()
+    {
+        if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create window surface!");
+        }
+    }
+
+    /// <summary>
+    /// Checks if all the required extensions needed by glfw are available.
+    /// </summary>
     bool check_glfw_extension_support() const
     {
         uint32_t glfw_extension_count = 0;
@@ -267,6 +284,8 @@ private:
             return 0;
         }
 
+
+
         return device_score;
     }
 
@@ -274,14 +293,22 @@ private:
     {
         Queue_Family_Indices indices = find_queue_families(physical_device);
 
-        VkDeviceQueueCreateInfo queue_create_info{};
-        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queue_create_info.queueFamilyIndex = indices.graphics_family.value();
-        queue_create_info.queueCount = 1; //Only one queue is needed, multiple threads can each have a command buffer that feeds into it
+        std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+        std::set<uint32_t> unique_queue_families = { indices.graphics_family.value(), indices.present_family.value() };
 
         //Set queue priority, higher values have higher priority
-        float queuePriority = 1.0f;
-        queue_create_info.pQueuePriorities = &queuePriority;
+        float queue_priority = 1.0f;
+
+        //Setup the information needed to create the queues.
+        for (uint32_t queue_family : unique_queue_families)
+        {
+            VkDeviceQueueCreateInfo queue_create_info{};
+            queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queue_create_info.queueFamilyIndex = queue_family;
+            queue_create_info.queueCount = 1; //Only one queue is needed, multiple threads can each have a command buffer that feeds into it
+            queue_create_info.pQueuePriorities = &queue_priority;
+            queue_create_infos.push_back(queue_create_info);
+        }
 
         //Set the required device features
         VkPhysicalDeviceFeatures device_features{}; //No required features for now.
@@ -289,8 +316,9 @@ private:
         VkDeviceCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-        create_info.pQueueCreateInfos = &queue_create_info;
-        create_info.queueCreateInfoCount = 1;
+        //Pass the queue information
+        create_info.pQueueCreateInfos = queue_create_infos.data();
+        create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
 
         create_info.pEnabledFeatures = &device_features;
 
@@ -318,17 +346,21 @@ private:
         vkGetDeviceQueue(device, indices.graphics_family.value(), 0, &graphics_queue);
     }
 
+    /// <summary>
+    /// Struct containing the indices of the command queues
+    /// </summary>
     struct Queue_Family_Indices
     {
         std::optional<uint32_t> graphics_family;
+        std::optional<uint32_t> present_family;
 
         /// <summary>
         /// Check if all queue families are filled.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Returns true if all queue families indices are initialized.</returns>
         bool is_complete()
         {
-            return graphics_family.has_value();
+            return graphics_family.has_value() && present_family.has_value();
         }
     };
 
@@ -348,6 +380,15 @@ private:
             if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 indices.graphics_family = i;
+            }
+
+            //Check if this device supports window system integration (a.k.a. presentation)
+            VkBool32 present_support = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
+
+            if (present_support)
+            {
+                indices.present_family = i;
             }
 
             //Early out if all queue families are found.
@@ -374,6 +415,8 @@ private:
     void cleanup()
     {
         vkDestroyDevice(device, nullptr);
+
+        vkDestroySurfaceKHR(instance, surface, nullptr);
 
         vkDestroyInstance(instance, nullptr);
 
@@ -422,7 +465,9 @@ private:
     VkDevice device;
 
     VkQueue graphics_queue;
+    VkQueue present_queue;
 
+    VkSurfaceKHR surface;
 
     const std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
 
