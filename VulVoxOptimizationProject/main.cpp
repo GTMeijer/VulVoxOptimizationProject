@@ -31,20 +31,29 @@ private:
 
     void init_window()
     {
+        std::cout << "Init window.." << std::endl;
+
         glfwInit();
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
         window = glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);
+
+        std::cout << "Window initialized.." << std::endl;
     }
 
     void init_vulkan()
     {
+        std::cout << "Init vulkan.." << std::endl;
+
         create_instance();
         create_surface();
         pick_physical_device();
         create_logical_device();
+
+        std::cout << "Vulkan initialized." << std::endl;
+
     }
 
     /// <summary>
@@ -144,7 +153,7 @@ private:
         std::cout << "Required extensions for glfw:\n";
 
         bool all_supported = true;
-        for (int i = 0; i < glfw_extension_count; i++)
+        for (uint32_t i = 0; i < glfw_extension_count; i++)
         {
             std::string glfw_extension_name = glfw_extensions[i];
 
@@ -317,8 +326,8 @@ private:
         create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
         //Pass the queue information
-        create_info.pQueueCreateInfos = queue_create_infos.data();
         create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+        create_info.pQueueCreateInfos = queue_create_infos.data();
 
         create_info.pEnabledFeatures = &device_features;
 
@@ -342,8 +351,10 @@ private:
             throw std::runtime_error("Failed to create logical device!");
         }
 
-        //Store the handle for the graphics queue
+        //Store the handles for the graphics and present queues
         vkGetDeviceQueue(device, indices.graphics_family.value(), 0, &graphics_queue);
+
+        vkGetDeviceQueue(device, indices.present_family.value(), 0, &present_queue);
     }
 
     /// <summary>
@@ -425,7 +436,7 @@ private:
         glfwTerminate();
     }
 
-    bool check_validation_layer_support()
+    bool check_validation_layer_support() const
     {
         uint32_t layer_count;
         vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
