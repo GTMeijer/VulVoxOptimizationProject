@@ -49,6 +49,7 @@ private:
     void create_surface();
     void create_logical_device();
     void create_swap_chain();
+    void create_image_views();
 
     void pick_physical_device();
 
@@ -82,6 +83,7 @@ private:
     VkSurfaceKHR surface;
     VkSwapchainKHR swap_chain;
     std::vector<VkImage> swap_chain_images;
+    std::vector<VkImageView> swap_chain_image_views;
     VkFormat swap_chain_image_format;
     VkExtent2D swap_chain_extent;
 
