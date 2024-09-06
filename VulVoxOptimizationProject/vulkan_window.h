@@ -80,6 +80,7 @@ private:
     VkQueue present_queue;
 
     VkSurfaceKHR surface;
+    VkSwapchainKHR swap_chain;
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

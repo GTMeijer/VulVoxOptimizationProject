@@ -40,6 +40,8 @@ void Vulkan_Window::init_vulkan()
 
 void Vulkan_Window::cleanup()
 {
+    vkDestroySwapchainKHR(device, swap_chain, nullptr);
+
     vkDestroyDevice(device, nullptr);
 
     vkDestroySurfaceKHR(instance, surface, nullptr);
@@ -188,6 +190,8 @@ void Vulkan_Window::create_logical_device()
 
 void Vulkan_Window::create_swap_chain()
 {
+    //Query supported formats and extends
+
     Swap_Chain_Support_Details swap_chain_support = query_swap_chain_support(physical_device);
 
     VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_support.formats);
@@ -220,6 +224,37 @@ void Vulkan_Window::create_swap_chain()
     create_info.imageExtent = extent;
     create_info.imageArrayLayers = 1; //Always one, unless we are working on a stereoscopic 3D application
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //We are writing directly to the image buffer, change when adding post-processing
+
+    Queue_Family_Indices indices = find_queue_families(physical_device);
+
+    std::array<uint32_t, 2> queue_family_indices = { indices.graphics_family.value(), indices.present_family.value() };
+
+
+    if (indices.graphics_family != indices.present_family)
+    {
+        //If the graphics and present queues are seperate we default to exclusive mode for simplicity
+        //This saves us handling ownership of the images
+        create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        create_info.queueFamilyIndexCount = 2;
+        create_info.pQueueFamilyIndices = queue_family_indices.data();
+    }
+    else
+    {
+        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        create_info.queueFamilyIndexCount = 0;
+        create_info.pQueueFamilyIndices = nullptr;
+    }
+
+    create_info.preTransform = swap_chain_support.capabilities.currentTransform; //Rotates or flips the image in the swapchain (disabled)
+    create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR; //Disable window alpha blend
+    create_info.presentMode = present_mode;
+    create_info.clipped = VK_TRUE; //Don't render obscure pixels
+    create_info.oldSwapchain = nullptr; //For now, required when recreating the swap chain (e.g. when minimizing)
+
+    if (vkCreateSwapchainKHR(device, &create_info, nullptr, &swap_chain) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create swap chain!");
+    }
 }
 
 /// <summary>

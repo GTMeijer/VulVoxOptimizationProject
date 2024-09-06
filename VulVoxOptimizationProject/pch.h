@@ -9,6 +9,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <array>
 #include <map>
 #include <cstring>
 #include <optional>
