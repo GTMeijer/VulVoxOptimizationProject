@@ -255,6 +255,14 @@ void Vulkan_Window::create_swap_chain()
     {
         throw std::runtime_error("Failed to create swap chain!");
     }
+
+    //Store the handles to the images inside the swap chains so we can write to them
+    vkGetSwapchainImagesKHR(device, swap_chain, &image_count, nullptr);
+    swap_chain_images.resize(image_count);
+    vkGetSwapchainImagesKHR(device, swap_chain, &image_count, swap_chain_images.data());
+
+    swap_chain_image_format = surface_format.format;
+    swap_chain_extent = extent;
 }
 
 /// <summary>
