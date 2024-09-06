@@ -1,14 +1,21 @@
 #pragma once
 
+//C headers
+#include <cstdint>
+#include <cstdlib>
+
 //STL
 #include <iostream>
 #include <stdexcept>
-#include <cstdlib>
 #include <vector>
 #include <map>
 #include <cstring>
 #include <optional>
 #include <set>
+#include <limits>
+#include <algorithm>
+
+
 
 //GLFW & Vulkan
 #define GLFW_INCLUDE_VULKAN

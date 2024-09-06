@@ -230,17 +230,65 @@ void Vulkan_Window::pick_physical_device()
     }
 }
 
-VkSurfaceFormatKHR Vulkan_Window::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats)
+VkSurfaceFormatKHR Vulkan_Window::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const
 {
     for (const auto& available_format : available_formats)
     {
+        //We prefer the SRGB format
         if (available_format.format == VK_FORMAT_B8G8R8A8_SRGB && available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
         {
             return available_format;
         }
     }
 
+    //If our preferred format is not available just use the first available one
     return available_formats[0];
+}
+
+VkPresentModeKHR Vulkan_Window::choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const
+{
+    for (const auto& available_present_mode : available_present_modes)
+    {
+        //We prefer triple buffering
+        if (available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
+        {
+            return available_present_mode;
+        }
+    }
+
+    //We default to vertical sync
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+/// <summary>
+/// Pick the appropriate resolution for the swap chain.
+/// </summary>
+/// <param name="capabilities"></param>
+/// <returns></returns>
+VkExtent2D Vulkan_Window::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) const
+{
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        //Use the recommended (by vulkan) pixel size
+        return capabilities.currentExtent;
+    }
+    else
+    {
+        //Retrieve the window size in pixels and clamp to the available swap chain size
+        //Allows support for screens with high DPI
+
+        int width;
+        int height;
+
+        glfwGetFramebufferSize(window, &width, &height);
+
+        VkExtent2D actual_extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+
+        actual_extent.width = std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        actual_extent.height = std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+        return actual_extent;
+    }
 }
 
 std::string Vulkan_Window::get_physical_device_name(const VkPhysicalDevice& device) const

@@ -51,7 +51,9 @@ private:
 
     void pick_physical_device();
 
-    VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats);
+    VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const;
+    VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const;
+    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) const;
 
     std::string get_physical_device_name(const VkPhysicalDevice& device) const;
     std::string get_physical_device_type(const VkPhysicalDevice& device) const;
