@@ -39,3 +39,4 @@
 # Build directories
 /x64
 /VulVoxOptimizationProject/x64
+/.vs
