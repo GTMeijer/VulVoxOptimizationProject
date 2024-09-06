@@ -33,6 +33,7 @@ void Vulkan_Window::init_vulkan()
     create_surface();
     pick_physical_device();
     create_logical_device();
+    create_swap_chain();
 
     std::cout << "Vulkan initialized." << std::endl;
 }
@@ -113,6 +114,8 @@ void Vulkan_Window::create_instance()
     {
         std::cout << '\t' << extension.extensionName << '\n';
     }
+
+    std::cout << std::endl;
 }
 
 void Vulkan_Window::create_surface()
@@ -183,6 +186,42 @@ void Vulkan_Window::create_logical_device()
     vkGetDeviceQueue(device, indices.present_family.value(), 0, &present_queue);
 }
 
+void Vulkan_Window::create_swap_chain()
+{
+    Swap_Chain_Support_Details swap_chain_support = query_swap_chain_support(physical_device);
+
+    VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swap_chain_support.formats);
+    std::cout << "Surface format: " << string_VkFormat(surface_format.format) << std::endl;
+
+    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.present_modes);
+    std::cout << "Present mode: " << string_VkPresentModeKHR(present_mode) << std::endl;
+
+    VkExtent2D extent = choose_swap_extent(swap_chain_support.capabilities);
+    std::cout << "Image buffer extent: " << extent.width << " x " << extent.height << std::endl;
+
+    std::cout << std::endl;
+
+    //Add one to the image buffer count so we have another image buffer to write to when the driver is swapping image buffers
+    uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
+
+    //Make sure we dont exceed the maximum image buffer count
+    if (swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount)
+    {
+        image_count = swap_chain_support.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    create_info.surface = surface;
+
+    create_info.minImageCount = image_count;
+    create_info.imageFormat = surface_format.format;
+    create_info.imageColorSpace = surface_format.colorSpace;
+    create_info.imageExtent = extent;
+    create_info.imageArrayLayers = 1; //Always one, unless we are working on a stereoscopic 3D application
+    create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //We are writing directly to the image buffer, change when adding post-processing
+}
+
 /// <summary>
 /// Select the GPU to use among available devices.
 /// </summary>
@@ -217,7 +256,7 @@ void Vulkan_Window::pick_physical_device()
         i++;
     }
 
-    std::cout << std::flush;
+    std::cout << std::endl;
 
     //Use the highest scoring GPU. If score is 0, no suitable GPU was found.
     if (device_candidates.rbegin()->first > 0)
@@ -432,9 +471,9 @@ bool Vulkan_Window::check_device_extension_support(const VkPhysicalDevice& devic
 
     std::set<std::string, std::less<>> required_extensions(device_extensions.begin(), device_extensions.end());
 
-    for (const auto& extension : required_extensions)
+    for (const auto& extension : available_extensions)
     {
-        required_extensions.erase(extension);
+        required_extensions.erase(extension.extensionName);
     }
 
     //If the required extension set is empty, all required extensions are supported by this device.

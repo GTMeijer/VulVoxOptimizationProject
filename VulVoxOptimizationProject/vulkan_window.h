@@ -48,6 +48,7 @@ private:
     void create_instance();
     void create_surface();
     void create_logical_device();
+    void create_swap_chain();
 
     void pick_physical_device();
 
