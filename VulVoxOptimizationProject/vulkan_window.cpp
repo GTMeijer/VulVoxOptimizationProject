@@ -35,6 +35,7 @@ void Vulkan_Window::init_vulkan()
     create_logical_device();
     create_swap_chain();
     create_image_views();
+    create_graphics_pipeline();
 
     std::cout << "Vulkan initialized." << std::endl;
 }
@@ -302,6 +303,76 @@ void Vulkan_Window::create_image_views()
             throw std::runtime_error("Failed to create image views!");
         }
     }
+}
+
+void Vulkan_Window::create_graphics_pipeline()
+{
+    //Load shader files and compile to SPIR-V code
+    std::filesystem::path vert_shader_filepath("shaders/vert.spv");
+    std::filesystem::path frag_shader_filepath("shaders/frag.spv");
+
+    auto vert_shader_code = read_file(vert_shader_filepath);
+    std::cout << "Vertex shader file read, size is " << vert_shader_code.size() << " bytes" << std::endl;
+
+    if (std::filesystem::file_size(vert_shader_filepath) != vert_shader_code.size())
+    {
+        throw std::runtime_error("Failed to load vertex shader, size missmatch!");
+    }
+
+    auto frag_shader_code = read_file(frag_shader_filepath);
+    std::cout << "Fragment shader file read, size is " << frag_shader_code.size() << " bytes" << std::endl;
+
+    if (std::filesystem::file_size(frag_shader_filepath) != frag_shader_code.size())
+    {
+        throw std::runtime_error("Failed to load fragment shader, size missmatch!");
+    }
+
+    std::cout << std::endl;
+
+    //Wrap the shader byte code in the shader modules for use in the pipeline
+    VkShaderModule vert_shader_module = create_shader_module(vert_shader_code);
+    VkShaderModule frag_shader_module = create_shader_module(frag_shader_code);
+
+    VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
+    vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vert_shader_stage_info.module = vert_shader_module;
+    vert_shader_stage_info.pName = "main";
+    vert_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
+
+    VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
+    frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    frag_shader_stage_info.module = frag_shader_module;
+    frag_shader_stage_info.pName = "main";
+    frag_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
+
+    //Some parts of the pipeline can be dynamic, we define these parts here
+    std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages_info = { vert_shader_stage_info, frag_shader_stage_info };
+
+    std::vector<VkDynamicState> dynamic_states =
+    {
+        VK_DYNAMIC_STATE_VIEWPORT, //viewport size
+        VK_DYNAMIC_STATE_SCISSOR //render area size
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamic_state_info{};
+    dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
+    dynamic_state_info.pDynamicStates = dynamic_states.data();
+
+    //Describe the format of the vertex data
+    VkPipelineVertexInputStateCreateInfo vertex_input_info{};
+    vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertex_input_info.vertexBindingDescriptionCount = 0;
+    vertex_input_info.pVertexBindingDescriptions = nullptr; //Optional, spacing between data and per vertex or per instance
+    vertex_input_info.vertexAttributeDescriptionCount = 0;
+    vertex_input_info.pVertexAttributeDescriptions = nullptr; //Optional, attribute type, which bindings to load, and offset
+
+    vkDestroyShaderModule(device, frag_shader_module, nullptr);
+    vkDestroyShaderModule(device, vert_shader_module, nullptr);
+
+
 }
 
 /// <summary>
@@ -658,4 +729,21 @@ Vulkan_Window::Queue_Family_Indices Vulkan_Window::find_queue_families(const VkP
 
 
     return indices;
+}
+
+VkShaderModule Vulkan_Window::create_shader_module(const std::vector<char>& bytecode)
+{
+    VkShaderModuleCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = bytecode.size();
+    create_info.pCode = reinterpret_cast<const uint32_t*> (bytecode.data());
+
+    VkShaderModule shader_module;
+    if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create shader module!");
+    }
+
+
+    return shader_module;
 }

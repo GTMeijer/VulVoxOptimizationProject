@@ -50,6 +50,7 @@ private:
     void create_logical_device();
     void create_swap_chain();
     void create_image_views();
+    void create_graphics_pipeline();
 
     void pick_physical_device();
 
@@ -68,6 +69,8 @@ private:
 
 
     Vulkan_Window::Queue_Family_Indices find_queue_families(const VkPhysicalDevice& device) const;
+
+    VkShaderModule create_shader_module(const std::vector<char>& bytecode);
 
     uint32_t width = 800;
     uint32_t height = 600;

@@ -93,6 +93,11 @@
     <ClInclude Include="utils.h" />
     <ClInclude Include="vulkan_window.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\compile_shaders.bat" />
+    <None Include="shaders\triangle_shader.frag" />
+    <None Include="shaders\triangle_shader.vert" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
