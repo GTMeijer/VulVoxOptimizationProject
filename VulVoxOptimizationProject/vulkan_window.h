@@ -89,6 +89,7 @@ private:
     std::vector<VkImageView> swap_chain_image_views;
     VkFormat swap_chain_image_format;
     VkExtent2D swap_chain_extent;
+    VkPipelineLayout pipeline_layout;
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

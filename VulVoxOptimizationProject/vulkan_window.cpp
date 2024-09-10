@@ -42,6 +42,8 @@ void Vulkan_Window::init_vulkan()
 
 void Vulkan_Window::cleanup()
 {
+    vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+
     for (auto& image_view : swap_chain_image_views)
     {
         vkDestroyImageView(device, image_view, nullptr);
@@ -350,17 +352,6 @@ void Vulkan_Window::create_graphics_pipeline()
     //Some parts of the pipeline can be dynamic, we define these parts here
     std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages_info = { vert_shader_stage_info, frag_shader_stage_info };
 
-    std::vector<VkDynamicState> dynamic_states =
-    {
-        VK_DYNAMIC_STATE_VIEWPORT, //viewport size
-        VK_DYNAMIC_STATE_SCISSOR //render area size
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamic_state_info{};
-    dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
-    dynamic_state_info.pDynamicStates = dynamic_states.data();
-
     //Describe the format of the vertex data
     VkPipelineVertexInputStateCreateInfo vertex_input_info{};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -368,6 +359,102 @@ void Vulkan_Window::create_graphics_pipeline()
     vertex_input_info.pVertexBindingDescriptions = nullptr; //Optional, spacing between data and per vertex or per instance
     vertex_input_info.vertexAttributeDescriptionCount = 0;
     vertex_input_info.pVertexAttributeDescriptions = nullptr; //Optional, attribute type, which bindings to load, and offset
+
+    //Describes the configuration of the vertices the triangles and lines use
+    VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
+    input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; //Triangle from every three vertices, without reuse
+    input_assembly_info.primitiveRestartEnable = VK_FALSE; //Break up lines and triangles in strip mode
+
+    //Viewport size
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float)swap_chain_extent.width;
+    viewport.height = (float)swap_chain_extent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    //Visible part of the viewport (whole viewport)
+    VkRect2D scissor{};
+    scissor.offset = { 0,0 };
+    scissor.extent = swap_chain_extent;
+
+    //It is usefull to have a non-static viewport and scissor size
+    std::vector<VkDynamicState> dynamic_states =
+    {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamic_state_info{};
+    dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
+    dynamic_state_info.pDynamicStates = dynamic_states.data();
+
+    VkPipelineViewportStateCreateInfo viewport_state_info{};
+    viewport_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport_state_info.viewportCount = 1;
+    viewport_state_info.scissorCount = 1;
+
+    //Setup rasterizer stage
+    VkPipelineRasterizationStateCreateInfo rasterizer_info{};
+    rasterizer_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    rasterizer_info.depthClampEnable = VK_FALSE; //Discard fragments outside of near/far plane (instead of clamping)
+    rasterizer_info.rasterizerDiscardEnable = VK_FALSE; //If true, discards all geometery
+    rasterizer_info.polygonMode = VK_POLYGON_MODE_FILL; //Full render, switch for wireframe or points (among others)
+    rasterizer_info.lineWidth = 1.0f; //wider requires wideLines GPU feature
+    rasterizer_info.cullMode = VK_CULL_MODE_BACK_BIT; //Backface culling
+    rasterizer_info.frontFace = VK_FRONT_FACE_CLOCKWISE; //Clockwise vertex order determines the front
+    rasterizer_info.depthBiasEnable = VK_FALSE;
+    rasterizer_info.depthBiasConstantFactor = 0.0f;
+    rasterizer_info.depthBiasClamp = 0.0f;
+    rasterizer_info.depthBiasSlopeFactor = 0.0f;
+
+    //Multisample / anti-aliasing stage (disabled)
+    VkPipelineMultisampleStateCreateInfo multisampling_info{};
+    multisampling_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling_info.sampleShadingEnable = VK_FALSE;
+    multisampling_info.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisampling_info.minSampleShading = 1.0f; // Optional
+    multisampling_info.pSampleMask = nullptr; // Optional
+    multisampling_info.alphaToCoverageEnable = VK_FALSE; // Optional
+    multisampling_info.alphaToOneEnable = VK_FALSE; // Optional
+
+    //Handle color blending of the fragments (for example alpha blending) (disabled)
+    VkPipelineColorBlendAttachmentState color_blend_attachement_info{};
+    color_blend_attachement_info.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    color_blend_attachement_info.blendEnable = VK_FALSE; //Disabled
+    color_blend_attachement_info.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; //Optional
+    color_blend_attachement_info.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; //Optional
+    color_blend_attachement_info.colorBlendOp = VK_BLEND_OP_ADD; //Optional
+    color_blend_attachement_info.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; //Optional
+    color_blend_attachement_info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; //Optional
+    color_blend_attachement_info.alphaBlendOp = VK_BLEND_OP_ADD; //Optional
+
+    VkPipelineColorBlendStateCreateInfo color_blending_info{};
+    color_blending_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    color_blending_info.logicOpEnable = VK_FALSE; //Disabled
+    color_blending_info.logicOp = VK_LOGIC_OP_COPY; //Optional
+    color_blending_info.attachmentCount = 1;
+    color_blending_info.pAttachments = &color_blend_attachement_info;
+    color_blending_info.blendConstants[0] = 0.0f; //Optional
+    color_blending_info.blendConstants[1] = 0.0f; //Optional
+    color_blending_info.blendConstants[2] = 0.0f; //Optional
+    color_blending_info.blendConstants[3] = 0.0f; //Optional
+
+    //Define global variables (like a transformation matrix) (none for now)
+    VkPipelineLayoutCreateInfo pipeline_layout_info{};
+    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeline_layout_info.setLayoutCount = 0; //Optional uniform data
+    pipeline_layout_info.pSetLayouts = nullptr;
+    pipeline_layout_info.pushConstantRangeCount = 0; //Optional small uniform data
+    pipeline_layout_info.pPushConstantRanges = nullptr;
+
+    if (vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create pipeline layout!");
+    }
 
     vkDestroyShaderModule(device, frag_shader_module, nullptr);
     vkDestroyShaderModule(device, vert_shader_module, nullptr);
