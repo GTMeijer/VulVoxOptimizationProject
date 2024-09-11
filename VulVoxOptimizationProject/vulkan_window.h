@@ -50,6 +50,7 @@ private:
     void create_logical_device();
     void create_swap_chain();
     void create_image_views();
+    void create_render_pass();
     void create_graphics_pipeline();
 
     void pick_physical_device();
@@ -89,6 +90,7 @@ private:
     std::vector<VkImageView> swap_chain_image_views;
     VkFormat swap_chain_image_format;
     VkExtent2D swap_chain_extent;
+    VkRenderPass render_pass;
     VkPipelineLayout pipeline_layout;
 
     //Required device extensions
