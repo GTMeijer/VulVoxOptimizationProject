@@ -43,6 +43,8 @@ void Vulkan_Window::init_vulkan()
 
 void Vulkan_Window::cleanup()
 {
+    vkDestroyPipeline(device, graphics_pipeline, nullptr);
+
     vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
 
     vkDestroyRenderPass(device, render_pass, nullptr);
@@ -445,7 +447,7 @@ void Vulkan_Window::create_graphics_pipeline()
 
     //Setup rasterizer stage
     VkPipelineRasterizationStateCreateInfo rasterizer_info{};
-    rasterizer_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    rasterizer_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer_info.depthClampEnable = VK_FALSE; //Discard fragments outside of near/far plane (instead of clamping)
     rasterizer_info.rasterizerDiscardEnable = VK_FALSE; //If true, discards all geometery
     rasterizer_info.polygonMode = VK_POLYGON_MODE_FILL; //Full render, switch for wireframe or points (among others)
@@ -501,6 +503,39 @@ void Vulkan_Window::create_graphics_pipeline()
     {
         throw std::runtime_error("Failed to create pipeline layout!");
     }
+
+    VkGraphicsPipelineCreateInfo pipeline_info{};
+    pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipeline_info.stageCount = 2; //Vert & Frag shader stages
+    pipeline_info.pStages = shader_stages_info.data();
+
+    //Shader stages
+    pipeline_info.pVertexInputState = &vertex_input_info;
+    pipeline_info.pInputAssemblyState = &input_assembly_info;
+    pipeline_info.pViewportState = &viewport_state_info;
+    pipeline_info.pRasterizationState = &rasterizer_info;
+    pipeline_info.pMultisampleState = &multisampling_info;
+    pipeline_info.pDepthStencilState = nullptr;
+    pipeline_info.pColorBlendState = &color_blending_info;
+    pipeline_info.pDynamicState = &dynamic_state_info;
+
+    //Fixed function stage
+    pipeline_info.layout = pipeline_layout;
+
+    pipeline_info.renderPass = render_pass;
+    pipeline_info.subpass = 0;
+
+    //This pipeline doesn't derive from another 
+    //(set VK_PIPELINE_CREATE_DERIVATIVE_BIT, if we want to derive from another)    
+    pipeline_info.basePipelineHandle = nullptr;
+    pipeline_info.basePipelineIndex = -1;
+
+    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create graphics pipeline!");
+    }
+
+
 
     vkDestroyShaderModule(device, frag_shader_module, nullptr);
     vkDestroyShaderModule(device, vert_shader_module, nullptr);
