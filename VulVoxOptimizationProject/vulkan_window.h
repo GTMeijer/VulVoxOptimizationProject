@@ -43,7 +43,10 @@ private:
     void init_window();
     void init_vulkan();
     void main_loop();
+    void draw_frame();
+
     void cleanup();
+
 
     void create_instance();
     void create_surface();
@@ -55,7 +58,8 @@ private:
     void create_framebuffers();
     void create_command_pool();
     void create_command_buffer();
-    
+    void create_sync_objects();
+
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
     void pick_physical_device();
@@ -101,6 +105,12 @@ private:
     std::vector<VkFramebuffer> swap_chain_framebuffers;
     VkCommandPool command_pool;
     VkCommandBuffer command_buffer;
+
+    //Semaphores and fences to synchronize the gpu and host operations
+    VkSemaphore image_available_semaphore;
+    VkSemaphore render_finished_semaphore;
+    VkFence in_flight_fence; //Fence for draw finish
+
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

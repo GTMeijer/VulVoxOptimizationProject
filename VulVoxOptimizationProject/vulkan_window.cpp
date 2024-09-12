@@ -8,7 +8,63 @@ void Vulkan_Window::main_loop()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+        draw_frame();
     }
+
+    //Wait until all operations are completed before cleanup
+    vkDeviceWaitIdle(device);
+}
+
+void Vulkan_Window::draw_frame()
+{
+    vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX);
+    vkResetFences(device, 1, &in_flight_fence);
+
+    uint32_t image_index;
+    vkAcquireNextImageKHR(device, swap_chain, UINT64_MAX, image_available_semaphore, nullptr, &image_index);
+
+    vkResetCommandBuffer(command_buffer, 0);
+    record_command_buffer(command_buffer, image_index);
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    //Which semaphore to wait for before execution and at which stage
+    std::array<VkSemaphore, 1> wait_semaphores = { image_available_semaphore };
+    std::array<VkPipelineStageFlags, 1> wait_stages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    submit_info.waitSemaphoreCount = wait_semaphores.size();
+    submit_info.pWaitSemaphores = wait_semaphores.data();
+    submit_info.pWaitDstStageMask = wait_stages.data();
+
+    //Which semaphore to signal when the command buffer is done
+    std::array<VkSemaphore, 1> signal_semaphores = { render_finished_semaphore };
+    submit_info.signalSemaphoreCount = signal_semaphores.size();
+    submit_info.pSignalSemaphores = signal_semaphores.data();
+
+    //Link command buffer
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+
+    if (vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fence) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to submit draw command buffer!");
+    }
+
+    VkPresentInfoKHR present_info{};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signal_semaphores.data(); //Wait for semaphore before we can present
+
+    std::array<VkSwapchainKHR, 1> swap_chains = { swap_chain };
+    present_info.swapchainCount = swap_chains.size();
+    present_info.pSwapchains = swap_chains.data();
+    present_info.pImageIndices = &image_index;
+
+    //Dont need to collect the draw results because the present function returns is as well
+    present_info.pResults = nullptr;
+
+    vkQueuePresentKHR(present_queue, &present_info);
+
 }
 
 void Vulkan_Window::init_window()
@@ -40,12 +96,17 @@ void Vulkan_Window::init_vulkan()
     create_framebuffers();
     create_command_pool();
     create_command_buffer();
+    create_sync_objects();
 
     std::cout << "Vulkan initialized." << std::endl;
 }
 
 void Vulkan_Window::cleanup()
 {
+    vkDestroySemaphore(device, image_available_semaphore, nullptr);
+    vkDestroySemaphore(device, render_finished_semaphore, nullptr);
+    vkDestroyFence(device, in_flight_fence, nullptr);
+
     vkDestroyCommandPool(device, command_pool, nullptr);
 
     for (auto& framebuffer : swap_chain_framebuffers)
@@ -352,17 +413,37 @@ void Vulkan_Window::create_render_pass()
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment_ref;
 
+    //Setup the dependencies between the subpasses (cant start b before a)
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+
+    //Wait until the swap chain finished reading
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+
+    //Color write has to wait until swap chain is done
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
     VkRenderPassCreateInfo render_pass_info{};
     render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     render_pass_info.attachmentCount = 1;
     render_pass_info.pAttachments = &color_attachment;
     render_pass_info.subpassCount = 1;
     render_pass_info.pSubpasses = &subpass;
+    render_pass_info.dependencyCount = 1;
+    render_pass_info.pDependencies = &dependency;
 
     if (vkCreateRenderPass(device, &render_pass_info, nullptr, &render_pass) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create render pass!");
     }
+
+
+
+
+
 }
 
 void Vulkan_Window::create_graphics_pipeline()
@@ -609,6 +690,23 @@ void Vulkan_Window::create_command_buffer()
     if (vkAllocateCommandBuffers(device, &alloc_info, &command_buffer) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to allocate command buffers!");
+    }
+}
+
+void Vulkan_Window::create_sync_objects()
+{
+    VkSemaphoreCreateInfo semaphore_info{};
+    semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fence_info{};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; //Start in signaled state for first frame
+
+    if (vkCreateSemaphore(device, &semaphore_info, nullptr, &image_available_semaphore) != VK_SUCCESS ||
+        vkCreateSemaphore(device, &semaphore_info, nullptr, &render_finished_semaphore) != VK_SUCCESS ||
+        vkCreateFence(device, &fence_info, nullptr, &in_flight_fence) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create semaphores!");
     }
 }
 
