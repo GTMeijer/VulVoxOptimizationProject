@@ -52,6 +52,7 @@ private:
     void create_image_views();
     void create_render_pass();
     void create_graphics_pipeline();
+    void create_framebuffers();
 
     void pick_physical_device();
 
@@ -93,6 +94,7 @@ private:
     VkRenderPass render_pass;
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline;
+    std::vector<VkFramebuffer> swap_chain_framebuffers;
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

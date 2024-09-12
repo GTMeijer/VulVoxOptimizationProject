@@ -37,12 +37,18 @@ void Vulkan_Window::init_vulkan()
     create_image_views();
     create_render_pass();
     create_graphics_pipeline();
+    create_framebuffers();
 
     std::cout << "Vulkan initialized." << std::endl;
 }
 
 void Vulkan_Window::cleanup()
 {
+    for (auto& framebuffer : swap_chain_framebuffers)
+    {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+
     vkDestroyPipeline(device, graphics_pipeline, nullptr);
 
     vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
@@ -541,6 +547,30 @@ void Vulkan_Window::create_graphics_pipeline()
     vkDestroyShaderModule(device, vert_shader_module, nullptr);
 
 
+}
+
+void Vulkan_Window::create_framebuffers()
+{
+    swap_chain_framebuffers.resize(swap_chain_image_views.size());
+
+    for (size_t i = 0; i < swap_chain_image_views.size(); i++)
+    {
+        std::array<VkImageView, 1> attachments = { swap_chain_image_views[i] };
+
+        VkFramebufferCreateInfo framebuffer_info{};
+        framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebuffer_info.renderPass = render_pass;
+        framebuffer_info.attachmentCount = 1;
+        framebuffer_info.pAttachments = attachments.data();
+        framebuffer_info.width = swap_chain_extent.width;
+        framebuffer_info.height = swap_chain_extent.height;
+        framebuffer_info.layers = 1; //Only single layer images in the swap chain
+
+        if (vkCreateFramebuffer(device, &framebuffer_info, nullptr, &swap_chain_framebuffers[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create framebuffer!");
+        }
+    }
 }
 
 /// <summary>
