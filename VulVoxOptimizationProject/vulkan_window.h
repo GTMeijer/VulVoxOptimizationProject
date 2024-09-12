@@ -53,6 +53,10 @@ private:
     void create_render_pass();
     void create_graphics_pipeline();
     void create_framebuffers();
+    void create_command_pool();
+    void create_command_buffer();
+    
+    void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
     void pick_physical_device();
 
@@ -95,6 +99,8 @@ private:
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline;
     std::vector<VkFramebuffer> swap_chain_framebuffers;
+    VkCommandPool command_pool;
+    VkCommandBuffer command_buffer;
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

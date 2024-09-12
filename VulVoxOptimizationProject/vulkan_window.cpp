@@ -38,12 +38,16 @@ void Vulkan_Window::init_vulkan()
     create_render_pass();
     create_graphics_pipeline();
     create_framebuffers();
+    create_command_pool();
+    create_command_buffer();
 
     std::cout << "Vulkan initialized." << std::endl;
 }
 
 void Vulkan_Window::cleanup()
 {
+    vkDestroyCommandPool(device, command_pool, nullptr);
+
     for (auto& framebuffer : swap_chain_framebuffers)
     {
         vkDestroyFramebuffer(device, framebuffer, nullptr);
@@ -549,6 +553,9 @@ void Vulkan_Window::create_graphics_pipeline()
 
 }
 
+/// <summary>
+/// Creates the framebuffers that references the data to the attachments (e.g. image resources)
+/// </summary>
 void Vulkan_Window::create_framebuffers()
 {
     swap_chain_framebuffers.resize(swap_chain_image_views.size());
@@ -570,6 +577,98 @@ void Vulkan_Window::create_framebuffers()
         {
             throw std::runtime_error("Failed to create framebuffer!");
         }
+    }
+}
+
+/// <summary>
+/// Creates the command pool that manages the memory that stores the buffers
+/// </summary>
+void Vulkan_Window::create_command_pool()
+{
+    Queue_Family_Indices queue_family_indices = find_queue_families(physical_device);
+
+    VkCommandPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
+
+    if (vkCreateCommandPool(device, &pool_info, nullptr, &command_pool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create command pool!");
+    }
+}
+
+void Vulkan_Window::create_command_buffer()
+{
+    VkCommandBufferAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.commandPool = command_pool;
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; //Directly submits to command queue (secondary can be used by primary)
+    alloc_info.commandBufferCount = 1; //Only a single buffer for now
+
+    if (vkAllocateCommandBuffers(device, &alloc_info, &command_buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate command buffers!");
+    }
+}
+
+void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
+{
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = 0;
+    begin_info.pInheritanceInfo = nullptr;
+
+    if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to begin recording command buffer!");
+    }
+
+    VkRenderPassBeginInfo render_pass_info{};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+
+    //attach this render pass to the swap chain image
+    render_pass_info.renderPass = render_pass;
+    render_pass_info.framebuffer = swap_chain_framebuffers[image_index];
+
+    //Cover the whole swap chain image
+    render_pass_info.renderArea.offset = { 0,0 };
+    render_pass_info.renderArea.extent = swap_chain_extent;
+
+    //Clear to black (we use VK_ATTACHMENT_LOAD_OP_CLEAR)
+    VkClearValue clear_color = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
+    render_pass_info.clearValueCount = 1;
+    render_pass_info.pClearValues = &clear_color;
+
+    //VK_SUBPASS_CONTENTS_INLINE means we don't use secondary command buffers
+    vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    //Bind to graphics pipeline (not compute)
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+
+    //We set viewport and scissor to dynamic earlier, so we define them now
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swap_chain_extent.width);
+    viewport.height = static_cast<float>(swap_chain_extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = { 0,0 };
+    scissor.extent = swap_chain_extent;
+    vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+    //Draw command, set vertex and instance counts and indices
+    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(command_buffer);
+
+    if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to record command buffer!");
     }
 }
 
