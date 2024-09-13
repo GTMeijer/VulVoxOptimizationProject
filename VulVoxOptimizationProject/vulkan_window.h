@@ -27,7 +27,7 @@ private:
         /// Check if all queue families are filled.
         /// </summary>
         /// <returns>Returns true if all queue families indices are initialized.</returns>
-        bool is_complete()
+        bool is_complete() const
         {
             return graphics_family.has_value() && present_family.has_value();
         }
@@ -104,17 +104,22 @@ private:
     VkPipeline graphics_pipeline;
     std::vector<VkFramebuffer> swap_chain_framebuffers;
     VkCommandPool command_pool;
-    VkCommandBuffer command_buffer;
+    std::vector<VkCommandBuffer> command_buffers;
 
     //Semaphores and fences to synchronize the gpu and host operations
-    VkSemaphore image_available_semaphore;
-    VkSemaphore render_finished_semaphore;
-    VkFence in_flight_fence; //Fence for draw finish
+    std::vector<VkSemaphore> image_available_semaphores;
+    std::vector<VkSemaphore> render_finished_semaphores;
+    std::vector<VkFence> in_flight_fences; //Fence for draw finish
 
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     const std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
+
+    //We don't want to wait for the previous frame to finish while processing the next frame,
+    //so we create double the amount of buffers so we can overlap frame processing
+    static const int MAX_FRAMES_IN_FLIGHT = 2;
+    uint32_t current_frame = 0;
 
 #ifdef NDEBUG
     const bool enableValidationLayers = false;
