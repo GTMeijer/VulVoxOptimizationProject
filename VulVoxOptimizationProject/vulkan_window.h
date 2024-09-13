@@ -1,6 +1,5 @@
 #pragma once
 
-
 class Vulkan_Window
 {
 public:
@@ -12,6 +11,8 @@ public:
         main_loop();
         cleanup();
     }
+
+    bool framebuffer_resized = false;
 
 private:
 
@@ -46,7 +47,7 @@ private:
     void draw_frame();
 
     void cleanup();
-
+    void cleanup_swap_chain();
 
     void create_instance();
     void create_surface();
@@ -61,6 +62,8 @@ private:
     void create_sync_objects();
 
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+
+    void recreate_swap_chain();
 
     void pick_physical_device();
 
@@ -112,6 +115,7 @@ private:
     std::vector<VkFence> in_flight_fences; //Fence for draw finish
 
 
+
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     const std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
@@ -128,3 +132,9 @@ private:
 #endif
 };
 
+static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
+{
+    //Retrieve the object instance the window belongs to
+    auto app = reinterpret_cast<Vulkan_Window*>(glfwGetWindowUserPointer(window));
+    app->framebuffer_resized = true;
+}
