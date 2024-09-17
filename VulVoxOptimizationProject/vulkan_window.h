@@ -63,9 +63,11 @@ private:
     void create_vertex_buffer();
     void create_command_buffer();
     void create_sync_objects();
-    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
 
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
+    void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
     void recreate_swap_chain();
 

@@ -734,18 +734,34 @@ void Vulkan_Window::create_command_pool()
 void Vulkan_Window::create_vertex_buffer()
 {
     VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+
+    //Create staging buffer that transfers data between the host and device
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
     create_buffer(buffer_size,
-        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        vertex_buffer,
-        vertex_buffer_memory);
+        staging_buffer,
+        staging_buffer_memory);
 
     void* data;
-    vkMapMemory(device, vertex_buffer_memory, 0, buffer_size, 0, &data);
+    vkMapMemory(device, staging_buffer_memory, 0, buffer_size, 0, &data);
 
     memcpy(data, vertices.data(), (size_t)buffer_size);
 
-    vkUnmapMemory(device, vertex_buffer_memory);
+    vkUnmapMemory(device, staging_buffer_memory);
+
+    //Create vertex buffer as device only buffer
+    create_buffer(buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        vertex_buffer,
+        vertex_buffer_memory);
+
+    copy_buffer(staging_buffer, vertex_buffer, buffer_size);
+
+    vkDestroyBuffer(device, staging_buffer, nullptr);
+    vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
 
 void Vulkan_Window::create_command_buffer()
@@ -820,6 +836,53 @@ void Vulkan_Window::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, V
 
     //Bind the buffer to the allocated memory
     vkBindBufferMemory(device, buffer, buffer_memory, 0);
+}
+
+/// <summary>
+/// Creates a temporary command buffer that transfers data between scr and dst buffers, executed immediately
+/// </summary>
+/// <param name="src_buffer"></param>
+/// <param name="dst_buffer"></param>
+/// <param name="size"></param>
+void Vulkan_Window::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+{
+    //Setup temp buffer for transfer
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandPool = command_pool;
+    allocate_info.commandBufferCount = 1;
+
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
+
+    //Start recording command buffer
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; //We only use this buffer once
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    //Record copy
+    VkBufferCopy copy_region{};
+    copy_region.srcOffset = 0; // Optional
+    copy_region.dstOffset = 0; // Optional
+    copy_region.size = size;
+
+    vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
+
+    vkEndCommandBuffer(command_buffer);
+
+    //Execute copy command buffer instantly and wait until transfer is complete
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffer;
+
+    vkQueueSubmit(graphics_queue, 1, &submit_info, nullptr);
+    vkQueueWaitIdle(graphics_queue);
+
+    vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 }
 
 void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
