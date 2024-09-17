@@ -25,8 +25,12 @@
 #define GLFW_DLL
 #include <GLFW/glfw3.h>
 
+//GLM
+#include <glm/glm.hpp>
+
 //Vulkan
 #include <vulkan/vk_enum_string_helper.h> //for error code conversion
 
 
 #include "utils.h"
+#include "vertex.h"

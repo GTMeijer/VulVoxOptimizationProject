@@ -125,6 +125,13 @@ private:
     static const int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t current_frame = 0;
 
+    const std::vector<Vertex> vertices =
+    {
+        {{ 0.0f,-0.5f},  {1.0f, 0.0f, 0.0f}},
+        {{ 0.5f, 0.5f }, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f},  {0.0f, 0.0f, 1.0f}}
+    };
+
 #ifdef NDEBUG
     const bool enableValidationLayers = false;
 #else

@@ -533,12 +533,16 @@ void Vulkan_Window::create_graphics_pipeline()
     std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages_info = { vert_shader_stage_info, frag_shader_stage_info };
 
     //Describe the format of the vertex data
+    auto binding_description = Vertex::get_binding_description();
+    auto attribute_descriptions = Vertex::get_attribute_descriptions();
+
+
     VkPipelineVertexInputStateCreateInfo vertex_input_info{};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = 0;
-    vertex_input_info.pVertexBindingDescriptions = nullptr; //Optional, spacing between data and per vertex or per instance
-    vertex_input_info.vertexAttributeDescriptionCount = 0;
-    vertex_input_info.pVertexAttributeDescriptions = nullptr; //Optional, attribute type, which bindings to load, and offset
+    vertex_input_info.vertexBindingDescriptionCount = 1;
+    vertex_input_info.pVertexBindingDescriptions = &binding_description; //Optional, spacing between data and per vertex or per instance
+    vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
+    vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data(); //Optional, attribute type, which bindings to load, and offset
 
     //Describes the configuration of the vertices the triangles and lines use
     VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
