@@ -127,6 +127,7 @@ void Vulkan_Window::init_vulkan()
     create_graphics_pipeline();
     create_framebuffers();
     create_command_pool();
+    create_vertex_buffer();
     create_command_buffer();
     create_sync_objects();
 
@@ -136,6 +137,9 @@ void Vulkan_Window::init_vulkan()
 void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
+
+    vkDestroyBuffer(device, vertex_buffer, nullptr);
+    vkFreeMemory(device, vertex_buffer_memory, nullptr);
 
     vkDestroyPipeline(device, graphics_pipeline, nullptr);
 
@@ -724,6 +728,52 @@ void Vulkan_Window::create_command_pool()
     }
 }
 
+/// <summary>
+/// Creates the memory buffer containing our vertex data
+/// </summary>
+void Vulkan_Window::create_vertex_buffer()
+{
+    VkBufferCreateInfo buffer_info{};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.size = sizeof(vertices[0]) * vertices.size();
+    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only used by graphics queue
+    buffer_info.flags = 0;
+
+    if (vkCreateBuffer(device, &buffer_info, nullptr, &vertex_buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create vertex buffer!");
+    }
+
+    //Query the physical device requirements to use the vertex buffer
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(device, vertex_buffer, &memory_requirements);
+
+    VkMemoryAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = memory_requirements.size;
+    //The memory has to be writable from the CPU side
+    //Also, ensure the mapped memory matches the content of the allocated memory (no flush needed)
+    allocate_info.memoryTypeIndex = find_memory_type(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(device, &allocate_info, nullptr, &vertex_buffer_memory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate vertex buffer memory!");
+    }
+
+    //Bind the buffer to the allocated memory
+    vkBindBufferMemory(device, vertex_buffer, vertex_buffer_memory, 0);
+
+    void* data;
+    vkMapMemory(device, vertex_buffer_memory, 0, buffer_info.size, 0, &data);
+
+    memcpy(data, vertices.data(), (size_t)buffer_info.size);
+
+    vkUnmapMemory(device, vertex_buffer_memory);
+
+
+}
+
 void Vulkan_Window::create_command_buffer()
 {
     command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -813,8 +863,13 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     scissor.extent = swap_chain_extent;
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
+    //Set the vertex buffers
+    std::array<VkBuffer, 1>  vertex_buffers = { vertex_buffer };
+    std::array<VkDeviceSize, 1> offsets = { 0 };
+    vkCmdBindVertexBuffers(command_buffer, 0, vertex_buffers.size(), vertex_buffers.data(), offsets.data());
+
     //Draw command, set vertex and instance counts and indices
-    vkCmdDraw(command_buffer, 3, 1, 0, 0);
+    vkCmdDraw(command_buffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
 
@@ -1218,4 +1273,27 @@ VkShaderModule Vulkan_Window::create_shader_module(const std::vector<char>& byte
 
 
     return shader_module;
+}
+
+/// <summary>
+/// Find a suitable memory type available on the physical device, choosing from one of the given suitable types
+/// </summary>
+/// <param name="type_filter">Suitable memory types</param>
+/// <param name="properties">Properties the memory type needs to support</param>
+/// <returns></returns>
+uint32_t Vulkan_Window::find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
+
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
+    {
+        if (type_filter & (1 << i) && //Memory type has to by one of suitable types
+            (memory_properties.memoryTypes[i].propertyFlags & properties) == properties) //Memory has to support all required properties
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Failed to find suitable memory type!");
 }

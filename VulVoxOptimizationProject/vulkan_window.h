@@ -58,6 +58,7 @@ private:
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
+    void create_vertex_buffer();
     void create_command_buffer();
     void create_sync_objects();
 
@@ -80,10 +81,11 @@ private:
     bool check_validation_layer_support() const;
     Swap_Chain_Support_Details query_swap_chain_support(const VkPhysicalDevice& device) const;
 
-
     Vulkan_Window::Queue_Family_Indices find_queue_families(const VkPhysicalDevice& device) const;
 
     VkShaderModule create_shader_module(const std::vector<char>& bytecode);
+
+    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
 
     uint32_t width = 800;
     uint32_t height = 600;
@@ -108,13 +110,13 @@ private:
     std::vector<VkFramebuffer> swap_chain_framebuffers;
     VkCommandPool command_pool;
     std::vector<VkCommandBuffer> command_buffers;
+    VkBuffer vertex_buffer;
+    VkDeviceMemory vertex_buffer_memory;
 
     //Semaphores and fences to synchronize the gpu and host operations
     std::vector<VkSemaphore> image_available_semaphores;
     std::vector<VkSemaphore> render_finished_semaphores;
     std::vector<VkFence> in_flight_fences; //Fence for draw finish
-
-
 
     //Required device extensions
     const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
