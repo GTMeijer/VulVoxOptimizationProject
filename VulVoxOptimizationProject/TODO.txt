@@ -1,0 +1,1 @@
+https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_transfer_queue

@@ -17,7 +17,9 @@ public:
 private:
 
     /// <summary>
-    /// Struct containing the indices of the command queues
+    /// Struct containing the indices of the command queues we require
+    /// For this program we need a graphics and present capable queue.
+    /// The families supporting these queues are stored in this class
     /// </summary>
     struct Queue_Family_Indices
     {
@@ -61,6 +63,7 @@ private:
     void create_vertex_buffer();
     void create_command_buffer();
     void create_sync_objects();
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
 
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
@@ -131,6 +134,7 @@ private:
     {
         {{ 0.0f,-0.5f},  {1.0f, 0.0f, 0.0f}},
         {{ 0.5f, 0.5f }, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f},  {0.0f, 0.0f, 1.0f}},
         {{-0.5f, 0.5f},  {0.0f, 0.0f, 1.0f}}
     };
 

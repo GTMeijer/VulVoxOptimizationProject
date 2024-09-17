@@ -733,45 +733,19 @@ void Vulkan_Window::create_command_pool()
 /// </summary>
 void Vulkan_Window::create_vertex_buffer()
 {
-    VkBufferCreateInfo buffer_info{};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = sizeof(vertices[0]) * vertices.size();
-    buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only used by graphics queue
-    buffer_info.flags = 0;
-
-    if (vkCreateBuffer(device, &buffer_info, nullptr, &vertex_buffer) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create vertex buffer!");
-    }
-
-    //Query the physical device requirements to use the vertex buffer
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(device, vertex_buffer, &memory_requirements);
-
-    VkMemoryAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = memory_requirements.size;
-    //The memory has to be writable from the CPU side
-    //Also, ensure the mapped memory matches the content of the allocated memory (no flush needed)
-    allocate_info.memoryTypeIndex = find_memory_type(memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-    if (vkAllocateMemory(device, &allocate_info, nullptr, &vertex_buffer_memory) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to allocate vertex buffer memory!");
-    }
-
-    //Bind the buffer to the allocated memory
-    vkBindBufferMemory(device, vertex_buffer, vertex_buffer_memory, 0);
+    VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+    create_buffer(buffer_size,
+        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        vertex_buffer,
+        vertex_buffer_memory);
 
     void* data;
-    vkMapMemory(device, vertex_buffer_memory, 0, buffer_info.size, 0, &data);
+    vkMapMemory(device, vertex_buffer_memory, 0, buffer_size, 0, &data);
 
-    memcpy(data, vertices.data(), (size_t)buffer_info.size);
+    memcpy(data, vertices.data(), (size_t)buffer_size);
 
     vkUnmapMemory(device, vertex_buffer_memory);
-
-
 }
 
 void Vulkan_Window::create_command_buffer()
@@ -812,6 +786,40 @@ void Vulkan_Window::create_sync_objects()
             throw std::runtime_error("Failed to create semaphores!");
         }
     }
+}
+
+void Vulkan_Window::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory)
+{
+    VkBufferCreateInfo buffer_info{};
+    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    buffer_info.size = size;
+    buffer_info.usage = usage;
+    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only used by graphics queue
+    buffer_info.flags = 0;
+
+    if (vkCreateBuffer(device, &buffer_info, nullptr, &buffer) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create vertex buffer!");
+    }
+
+    //Query the physical device requirements to use the vertex buffer
+    VkMemoryRequirements memory_requirements;
+    vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
+
+    VkMemoryAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = memory_requirements.size;
+    //The memory has to be writable from the CPU side
+    //Also, ensure the mapped memory matches the content of the allocated memory (no flush needed)
+    allocate_info.memoryTypeIndex = find_memory_type(memory_requirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &allocate_info, nullptr, &buffer_memory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate vertex buffer memory!");
+    }
+
+    //Bind the buffer to the allocated memory
+    vkBindBufferMemory(device, buffer, buffer_memory, 0);
 }
 
 void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
