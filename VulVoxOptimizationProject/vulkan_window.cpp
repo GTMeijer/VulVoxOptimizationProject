@@ -33,11 +33,16 @@ void Vulkan_Window::draw_frame()
         throw std::runtime_error("Failed to acquire swap chain image!");
     }
 
+    //Update global variables (camera etc.)
+    update_uniform_buffer(current_frame);
+
     //Reset fence *after* confirming the swapchain is valid (prevents deadlock)
     vkResetFences(device, 1, &in_flight_fences[current_frame]);
 
     vkResetCommandBuffer(command_buffers[current_frame], 0);
     record_command_buffer(command_buffers[current_frame], image_index);
+
+
 
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -95,6 +100,24 @@ void Vulkan_Window::draw_frame()
     current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
 }
 
+void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
+{
+    static auto start_time = std::chrono::high_resolution_clock::now();
+    auto current_time = std::chrono::high_resolution_clock::now();
+
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+    //Rotate around the z-axis
+    MVP mvp{};
+    mvp.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+    mvp.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain_extent.width / (float)swap_chain_extent.height, 0.1f, 10.0f);
+
+    mvp.projection[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
+
+    memcpy(uniform_buffers_mapped[current_image], &mvp, sizeof(mvp));
+}
+
 void Vulkan_Window::init_window()
 {
     std::cout << "Init window.." << std::endl;
@@ -124,11 +147,13 @@ void Vulkan_Window::init_vulkan()
     create_swap_chain();
     create_image_views();
     create_render_pass();
+    create_descriptor_set_layout();
     create_graphics_pipeline();
     create_framebuffers();
     create_command_pool();
     create_vertex_buffer();
     create_index_buffer();
+    create_uniform_buffers();
     create_command_buffer();
     create_sync_objects();
 
@@ -139,17 +164,27 @@ void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
 
+    vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
+
+    vkDestroyPipeline(device, graphics_pipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+    vkDestroyRenderPass(device, render_pass, nullptr);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroyBuffer(device, uniform_buffers[i], nullptr);
+        vkFreeMemory(device, uniform_buffers_memory[i], nullptr);
+    }
+
+    vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
+
     vkDestroyBuffer(device, index_buffer, nullptr);
     vkFreeMemory(device, index_buffer_memory, nullptr);
 
     vkDestroyBuffer(device, vertex_buffer, nullptr);
     vkFreeMemory(device, vertex_buffer_memory, nullptr);
 
-    vkDestroyPipeline(device, graphics_pipeline, nullptr);
 
-    vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-
-    vkDestroyRenderPass(device, render_pass, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -495,6 +530,26 @@ void Vulkan_Window::create_render_pass()
 
 }
 
+void Vulkan_Window::create_descriptor_set_layout()
+{
+    VkDescriptorSetLayoutBinding ubo_layout_binding{};
+    ubo_layout_binding.binding = 0; //Same as in shader
+    ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    ubo_layout_binding.descriptorCount = 1;
+    ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //This buffer is (only) referenced in the vertex stage
+    ubo_layout_binding.pImmutableSamplers = nullptr; //Optional
+
+    VkDescriptorSetLayoutCreateInfo layout_info{};
+    layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layout_info.bindingCount = 1;
+    layout_info.pBindings = &ubo_layout_binding;
+
+    if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to created descriptor set layout!");
+    }
+}
+
 void Vulkan_Window::create_graphics_pipeline()
 {
     //Load shader files and compile to SPIR-V code
@@ -638,8 +693,8 @@ void Vulkan_Window::create_graphics_pipeline()
     //Define global variables (like a transformation matrix) (none for now)
     VkPipelineLayoutCreateInfo pipeline_layout_info{};
     pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = 0; //Optional uniform data
-    pipeline_layout_info.pSetLayouts = nullptr;
+    pipeline_layout_info.setLayoutCount = 1; //Amount of uniform buffers
+    pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
     pipeline_layout_info.pushConstantRangeCount = 0; //Optional small uniform data
     pipeline_layout_info.pPushConstantRanges = nullptr;
 
@@ -797,6 +852,23 @@ void Vulkan_Window::create_index_buffer()
     //Data on device, cleanup temp buffers
     vkDestroyBuffer(device, staging_buffer, nullptr);
     vkFreeMemory(device, staging_buffer_memory, nullptr);
+}
+
+void Vulkan_Window::create_uniform_buffers()
+{
+    VkDeviceSize buffer_size = sizeof(MVP);
+
+    uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniform_buffers_memory.resize(MAX_FRAMES_IN_FLIGHT);
+    uniform_buffers_mapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        create_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniform_buffers[i], uniform_buffers_memory[i]);
+
+        //Map pointer to memory so we can write to the buffer, this pointer is persistant throughout the applications lifetime
+        vkMapMemory(device, uniform_buffers_memory[i], 0, buffer_size, 0, &uniform_buffers_mapped[i]);
+    }
 }
 
 void Vulkan_Window::create_command_buffer()

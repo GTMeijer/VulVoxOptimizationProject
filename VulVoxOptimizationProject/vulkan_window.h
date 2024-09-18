@@ -48,6 +48,8 @@ private:
     void main_loop();
     void draw_frame();
 
+    void update_uniform_buffer(uint32_t current_image);
+
     void cleanup();
     void cleanup_swap_chain();
 
@@ -57,15 +59,18 @@ private:
     void create_swap_chain();
     void create_image_views();
     void create_render_pass();
+    void create_descriptor_set_layout(); //Describes uniform buffers
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
-    
+
     void create_vertex_buffer();
     void create_index_buffer();
+    void create_uniform_buffers();
 
     void create_command_buffer();
     void create_sync_objects();
+
 
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
@@ -113,6 +118,7 @@ private:
     VkFormat swap_chain_image_format;
     VkExtent2D swap_chain_extent;
     VkRenderPass render_pass;
+    VkDescriptorSetLayout descriptor_set_layout;
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline;
     std::vector<VkFramebuffer> swap_chain_framebuffers;
@@ -123,6 +129,10 @@ private:
     VkDeviceMemory vertex_buffer_memory;
     VkBuffer index_buffer;
     VkDeviceMemory index_buffer_memory;
+
+    std::vector<VkBuffer> uniform_buffers;
+    std::vector<VkDeviceMemory> uniform_buffers_memory;
+    std::vector<void*> uniform_buffers_mapped;
 
     //Semaphores and fences to synchronize the gpu and host operations
     std::vector<VkSemaphore> image_available_semaphores;
