@@ -154,6 +154,8 @@ void Vulkan_Window::init_vulkan()
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
+    create_descriptor_pool();
+    create_descriptor_sets();
     create_command_buffer();
     create_sync_objects();
 
@@ -163,6 +165,9 @@ void Vulkan_Window::init_vulkan()
 void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
+
+    //Descriptor sets will be destroyed with the pool
+    vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
 
     vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
 
@@ -652,7 +657,7 @@ void Vulkan_Window::create_graphics_pipeline()
     rasterizer_info.polygonMode = VK_POLYGON_MODE_FILL; //Full render, switch for wireframe or points (among others)
     rasterizer_info.lineWidth = 1.0f; //wider requires wideLines GPU feature
     rasterizer_info.cullMode = VK_CULL_MODE_BACK_BIT; //Backface culling
-    rasterizer_info.frontFace = VK_FRONT_FACE_CLOCKWISE; //Clockwise vertex order determines the front
+    rasterizer_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; //Counter clockwise vertex order determines the front (we flip the y axis)
     rasterizer_info.depthBiasEnable = VK_FALSE;
     rasterizer_info.depthBiasConstantFactor = 0.0f;
     rasterizer_info.depthBiasClamp = 0.0f;
@@ -871,6 +876,65 @@ void Vulkan_Window::create_uniform_buffers()
     }
 }
 
+void Vulkan_Window::create_descriptor_pool()
+{
+    VkDescriptorPoolSize pool_size{};
+    pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    VkDescriptorPoolCreateInfo pool_info{};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = &pool_size;
+    pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    pool_info.flags = 0;
+
+    if (vkCreateDescriptorPool(device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create descriptor pool!");
+    }
+}
+
+void Vulkan_Window::create_descriptor_sets()
+{
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
+
+    VkDescriptorSetAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = descriptor_pool;
+    allocate_info.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocate_info.pSetLayouts = layouts.data();
+
+    descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate descriptor sets!");
+    }
+
+    //Describe the data layout inside the buffers we want to write
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        VkDescriptorBufferInfo buffer_info{};
+        buffer_info.buffer = uniform_buffers[i];
+        buffer_info.offset = 0;
+        buffer_info.range = sizeof(MVP);
+
+        VkWriteDescriptorSet descriptor_write{};
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = descriptor_sets[i]; //Binding to update
+        descriptor_write.dstBinding = 0; //Binding index equal to shader binding inde
+        descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_write.descriptorCount = 1; //A single buffer info struct
+        descriptor_write.pBufferInfo = &buffer_info; //Data and layout of buffer
+        descriptor_write.pImageInfo = nullptr; //Optional, only used for image data
+        descriptor_write.pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
+
+        //Apply updates
+        vkUpdateDescriptorSets(device, 1, &descriptor_write, 0, nullptr); //Only write descriptor, no copy
+    }
+}
+
 void Vulkan_Window::create_command_buffer()
 {
     command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1046,7 +1110,11 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     std::array<VkDeviceSize, 1> offsets = { 0 };
     vkCmdBindVertexBuffers(command_buffer, 0, vertex_buffers.size(), vertex_buffers.data(), offsets.data());
 
+    //Set the index buffers
     vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+    //Set the uniform buffers
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
 
     //Draw command, set vertex and instance counts (we're not using instancing) and indices
     vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);

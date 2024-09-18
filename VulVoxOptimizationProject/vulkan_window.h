@@ -67,6 +67,8 @@ private:
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
+    void create_descriptor_pool();
+    void create_descriptor_sets();
 
     void create_command_buffer();
     void create_sync_objects();
@@ -133,6 +135,8 @@ private:
     std::vector<VkBuffer> uniform_buffers;
     std::vector<VkDeviceMemory> uniform_buffers_memory;
     std::vector<void*> uniform_buffers_mapped;
+    VkDescriptorPool descriptor_pool;
+    std::vector<VkDescriptorSet> descriptor_sets;
 
     //Semaphores and fences to synchronize the gpu and host operations
     std::vector<VkSemaphore> image_available_semaphores;
