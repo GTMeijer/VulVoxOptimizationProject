@@ -128,6 +128,7 @@ void Vulkan_Window::init_vulkan()
     create_framebuffers();
     create_command_pool();
     create_vertex_buffer();
+    create_index_buffer();
     create_command_buffer();
     create_sync_objects();
 
@@ -137,6 +138,9 @@ void Vulkan_Window::init_vulkan()
 void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
+
+    vkDestroyBuffer(device, index_buffer, nullptr);
+    vkFreeMemory(device, index_buffer_memory, nullptr);
 
     vkDestroyBuffer(device, vertex_buffer, nullptr);
     vkFreeMemory(device, vertex_buffer_memory, nullptr);
@@ -746,9 +750,7 @@ void Vulkan_Window::create_vertex_buffer()
 
     void* data;
     vkMapMemory(device, staging_buffer_memory, 0, buffer_size, 0, &data);
-
     memcpy(data, vertices.data(), (size_t)buffer_size);
-
     vkUnmapMemory(device, staging_buffer_memory);
 
     //Create vertex buffer as device only buffer
@@ -758,8 +760,41 @@ void Vulkan_Window::create_vertex_buffer()
         vertex_buffer,
         vertex_buffer_memory);
 
+    //Copy data from host to device
     copy_buffer(staging_buffer, vertex_buffer, buffer_size);
 
+    //Data on device, cleanup temp buffers
+    vkDestroyBuffer(device, staging_buffer, nullptr);
+    vkFreeMemory(device, staging_buffer_memory, nullptr);
+}
+
+void Vulkan_Window::create_index_buffer()
+{
+    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    create_buffer(buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        staging_buffer,
+        staging_buffer_memory);
+
+    void* data;
+    vkMapMemory(device, staging_buffer_memory, 0, buffer_size, 0, &data);
+    memcpy(data, indices.data(), (size_t)buffer_size);
+    vkUnmapMemory(device, staging_buffer_memory);
+
+    //Create index buffer as device only buffer
+    create_buffer(buffer_size,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        index_buffer,
+        index_buffer_memory);
+
+    //Copy data from host to device
+    copy_buffer(staging_buffer, index_buffer, buffer_size);
+
+    //Data on device, cleanup temp buffers
     vkDestroyBuffer(device, staging_buffer, nullptr);
     vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
@@ -939,8 +974,10 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     std::array<VkDeviceSize, 1> offsets = { 0 };
     vkCmdBindVertexBuffers(command_buffer, 0, vertex_buffers.size(), vertex_buffers.data(), offsets.data());
 
-    //Draw command, set vertex and instance counts and indices
-    vkCmdDraw(command_buffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
+
+    //Draw command, set vertex and instance counts (we're not using instancing) and indices
+    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
 

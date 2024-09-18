@@ -60,7 +60,10 @@ private:
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
+    
     void create_vertex_buffer();
+    void create_index_buffer();
+
     void create_command_buffer();
     void create_sync_objects();
 
@@ -115,8 +118,11 @@ private:
     std::vector<VkFramebuffer> swap_chain_framebuffers;
     VkCommandPool command_pool;
     std::vector<VkCommandBuffer> command_buffers;
+
     VkBuffer vertex_buffer;
     VkDeviceMemory vertex_buffer_memory;
+    VkBuffer index_buffer;
+    VkDeviceMemory index_buffer_memory;
 
     //Semaphores and fences to synchronize the gpu and host operations
     std::vector<VkSemaphore> image_available_semaphores;
@@ -134,11 +140,14 @@ private:
 
     const std::vector<Vertex> vertices =
     {
-        {{ 0.0f,-0.5f},  {1.0f, 0.0f, 0.0f}},
-        {{ 0.5f, 0.5f }, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f},  {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f},  {0.0f, 0.0f, 1.0f}}
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{ 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{ 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}}
     };
+
+    //16bit for now, >65535 needs 32
+    const std::vector<uint16_t> indices = { 0, 1, 2, 2, 3, 0 };
 
 #ifdef NDEBUG
     const bool enableValidationLayers = false;

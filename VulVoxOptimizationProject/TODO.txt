@@ -1,5 +1,9 @@
-1 transfer queue family (optional):
+1. vkAllocateMemory library:
+https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html
+	2.: Or even better, one buffer: end of https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
+
+2. transfer queue family (optional):
 https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html#_transfer_queue
 
-2, optimize buffer transfers (if needed):
+3. optimize buffer transfers (if needed):
 We could use a fence and wait with vkWaitForFences, or simply wait for the transfer queue to become idle with vkQueueWaitIdle. A fence would allow you to schedule multiple transfers simultaneously and wait for all of them complete, instead of executing one at a time. That may give the driver more opportunities to optimize.
