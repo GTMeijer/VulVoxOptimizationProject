@@ -167,6 +167,9 @@ void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
 
+    vkDestroyImage(device, texture_image, nullptr);
+    vkFreeMemory(device, texture_image_memory, nullptr);
+
     //Descriptor sets will be destroyed with the pool
     vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
 
@@ -825,7 +828,15 @@ void Vulkan_Window::create_texture_image()
 
     create_image(texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
 
+    //Change layout of target image memory to be optimal for writing destination
+    transition_image_layout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    //Transfer the image data from the staging buffer to the image memory
+    copy_buffer_to_image(staging_buffer, texture_image, static_cast<uint32_t>(texture_width), static_cast<uint32_t>(texture_height));
+    //Change layout of image memory to be optimal for reading by a shader
+    transition_image_layout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+    vkDestroyBuffer(device, staging_buffer, nullptr);
+    vkFreeMemory(device, staging_buffer_memory, nullptr);
 }
 
 void Vulkan_Window::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory)
@@ -867,6 +878,95 @@ void Vulkan_Window::create_image(uint32_t width, uint32_t height, VkFormat forma
     }
 
     vkBindImageMemory(device, image, image_memory, 0);
+}
+
+void Vulkan_Window::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
+{
+    VkCommandBuffer command_buffer = begin_single_time_commands();
+
+    //Create barrier to prevent reading before write is done
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = old_layout;
+    barrier.newLayout = new_layout;
+
+    //Queue family indices for ownership transfer, we dont want to do this here so set IGNORED
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0; //No mipmapping
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0; //No array
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags source_stage;
+    VkPipelineStageFlags destination_stage;
+
+    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        //Transfer to write optimal layout
+        barrier.srcAccessMask = 0; //No need to wait
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; //
+
+        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; //Start immediately (start of pipeline)
+        destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        //Transfer write optimal to optimal shader read layout
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else
+    {
+        throw std::invalid_argument("Unsupported layout transition!");
+    }
+
+    //Send command for image barrier
+    vkCmdPipelineBarrier(command_buffer,
+        source_stage,
+        destination_stage,
+        0,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+
+    end_single_time_commands(command_buffer);
+}
+
+void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+{
+    VkCommandBuffer command_buffer = begin_single_time_commands();
+
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0; //Start of pixel values
+    region.bufferRowLength = 0; //Memory layout
+    region.bufferImageHeight = 0; //Memory layout
+
+    //Part of the image we want to copy
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = { 0,0,0 };
+    region.imageExtent = { width, height, 1 };
+
+    //Enqueue the image copy operation
+    vkCmdCopyBufferToImage(
+        command_buffer,
+        buffer,
+        image,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        1,
+        &region);
+
+    end_single_time_commands(command_buffer);
 }
 
 /// <summary>
@@ -1094,22 +1194,7 @@ void Vulkan_Window::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, V
 /// <param name="size"></param>
 void Vulkan_Window::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
 {
-    //Setup temp buffer for transfer
-    VkCommandBufferAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocate_info.commandPool = command_pool;
-    allocate_info.commandBufferCount = 1;
-
-    VkCommandBuffer command_buffer;
-    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
-
-    //Start recording command buffer
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; //We only use this buffer once
-
-    vkBeginCommandBuffer(command_buffer, &begin_info);
+    VkCommandBuffer command_buffer = begin_single_time_commands();
 
     //Record copy
     VkBufferCopy copy_region{};
@@ -1119,18 +1204,7 @@ void Vulkan_Window::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDevi
 
     vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
 
-    vkEndCommandBuffer(command_buffer);
-
-    //Execute copy command buffer instantly and wait until transfer is complete
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-
-    vkQueueSubmit(graphics_queue, 1, &submit_info, nullptr);
-    vkQueueWaitIdle(graphics_queue);
-
-    vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
+    end_single_time_commands(command_buffer);
 }
 
 void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
@@ -1225,6 +1299,45 @@ void Vulkan_Window::recreate_swap_chain()
     create_swap_chain();
     create_image_views(); //Depend on swap chain
     create_framebuffers(); //Depend on image views
+}
+
+VkCommandBuffer Vulkan_Window::begin_single_time_commands()
+{
+    //Setup temp buffer for transfer
+
+    VkCommandBufferAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandPool = command_pool;
+    allocate_info.commandBufferCount = 1;
+
+    VkCommandBuffer command_buffer;
+    vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
+
+    //Start recording command buffer
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; //We only use this buffer once
+
+    vkBeginCommandBuffer(command_buffer, &begin_info);
+
+    return command_buffer;
+}
+
+void Vulkan_Window::end_single_time_commands(VkCommandBuffer command_buffer)
+{
+    vkEndCommandBuffer(command_buffer);
+
+    //Execute copy command buffer instantly and wait until transfer is complete
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &command_buffer;
+
+    vkQueueSubmit(graphics_queue, 1, &submitInfo, nullptr);
+    vkQueueWaitIdle(graphics_queue);
+
+    vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 }
 
 /// <summary>

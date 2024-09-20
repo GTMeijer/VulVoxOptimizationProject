@@ -66,6 +66,8 @@ private:
 
     void create_texture_image();
     void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
     void create_vertex_buffer();
     void create_index_buffer();
@@ -83,6 +85,10 @@ private:
     void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
     void recreate_swap_chain();
+
+    VkCommandBuffer begin_single_time_commands();
+    void end_single_time_commands(VkCommandBuffer command_buffer);
+
 
     void pick_physical_device();
 
