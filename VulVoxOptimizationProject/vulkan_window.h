@@ -64,6 +64,9 @@ private:
     void create_framebuffers();
     void create_command_pool();
 
+    void create_texture_image();
+    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
@@ -137,6 +140,9 @@ private:
     std::vector<void*> uniform_buffers_mapped;
     VkDescriptorPool descriptor_pool;
     std::vector<VkDescriptorSet> descriptor_sets;
+
+    VkImage texture_image;
+    VkDeviceMemory texture_image_memory;
 
     //Semaphores and fences to synchronize the gpu and host operations
     std::vector<VkSemaphore> image_available_semaphores;

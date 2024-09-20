@@ -151,6 +151,7 @@ void Vulkan_Window::init_vulkan()
     create_graphics_pipeline();
     create_framebuffers();
     create_command_pool();
+    create_texture_image();
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
@@ -790,6 +791,82 @@ void Vulkan_Window::create_command_pool()
     {
         throw std::runtime_error("Failed to create command pool!");
     }
+}
+
+void Vulkan_Window::create_texture_image()
+{
+    int texture_width;
+    int texture_height;
+    int texture_channels;
+
+    //Load texture image, force alpha channel
+    stbi_uc* pixels = stbi_load("textures/konata.png", &texture_width, &texture_height, &texture_channels, STBI_rgb_alpha);
+    VkDeviceSize image_size = texture_width * texture_height * 4;
+
+    if (!pixels)
+    {
+        throw std::runtime_error("Failed to load texture image!");
+    }
+
+    //Setup host visible staging buffer
+    VkBuffer staging_buffer;
+    VkDeviceMemory staging_buffer_memory;
+    create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+    //Copy the texture data into the staging buffer
+    void* data;
+    vkMapMemory(device, staging_buffer_memory, 0, image_size, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(image_size));
+    vkUnmapMemory(device, staging_buffer_memory);
+
+    stbi_image_free(pixels);
+
+    //Texels == pixels
+
+    create_image(texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
+
+
+}
+
+void Vulkan_Window::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory)
+{
+    //Descripe image memory format
+    VkImageCreateInfo image_info{};
+    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    image_info.imageType = VK_IMAGE_TYPE_2D;
+    image_info.extent.width = width;
+    image_info.extent.height = height;
+    image_info.extent.depth = 1;
+    image_info.mipLevels = 1; //No mip mapping
+    image_info.arrayLayers = 1;
+    image_info.format = format; //Same as pixel buffers
+    image_info.tiling = tiling; //We dont need to access the images memory so no need for linear tiling
+    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //Discard after first transition
+    image_info.usage = usage; //Destination for buffer copy and readable by shader
+    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only one queue family will use the image (graphics)
+    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_info.flags = 0; //Optional
+
+    if (vkCreateImage(device, &image_info, nullptr, &image) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create image!");
+    }
+
+    VkMemoryRequirements memory_requirements;
+    vkGetImageMemoryRequirements(device, image, &memory_requirements);
+
+    //Allocate memory for the texture image
+    VkMemoryAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = memory_requirements.size;
+    allocate_info.memoryTypeIndex = find_memory_type(memory_requirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(device, &allocate_info, nullptr, &image_memory) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to allocate image memory!");
+    }
+
+    vkBindImageMemory(device, image, image_memory, 0);
 }
 
 /// <summary>

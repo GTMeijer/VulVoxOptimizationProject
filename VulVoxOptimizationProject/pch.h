@@ -32,6 +32,9 @@
 //Vulkan
 #include <vulkan/vk_enum_string_helper.h> //for error code conversion
 
+//STB image library for image loading
+//#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 #include "utils.h"
 #include "vertex.h"
