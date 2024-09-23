@@ -65,9 +65,9 @@ private:
     void create_command_pool();
 
     void create_texture_image();
-    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
-    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
-    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    void create_texture_image_view();
+
+    void create_texture_sampler();
 
     void create_vertex_buffer();
     void create_index_buffer();
@@ -111,6 +111,14 @@ private:
 
     uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
 
+
+    //Image creation help functions
+    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+    VkImageView create_image_view(VkImage image, VkFormat format);
+
     uint32_t width = 800;
     uint32_t height = 600;
     GLFWwindow* window;
@@ -149,6 +157,10 @@ private:
 
     VkImage texture_image;
     VkDeviceMemory texture_image_memory;
+    
+    VkImageView texture_image_view;
+    VkSampler texture_sampler;
+
 
     //Semaphores and fences to synchronize the gpu and host operations
     std::vector<VkSemaphore> image_available_semaphores;

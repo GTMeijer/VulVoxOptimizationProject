@@ -152,6 +152,8 @@ void Vulkan_Window::init_vulkan()
     create_framebuffers();
     create_command_pool();
     create_texture_image();
+    create_texture_image_view();
+    create_texture_sampler();
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
@@ -167,6 +169,8 @@ void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
 
+    vkDestroySampler(device, texture_sampler, nullptr);
+    vkDestroyImageView(device, texture_image_view, nullptr);
     vkDestroyImage(device, texture_image, nullptr);
     vkFreeMemory(device, texture_image_memory, nullptr);
 
@@ -328,7 +332,8 @@ void Vulkan_Window::create_logical_device()
     }
 
     //Set the required device features
-    VkPhysicalDeviceFeatures device_features{}; //No required features for now.
+    VkPhysicalDeviceFeatures device_features{};
+    device_features.samplerAnisotropy = VK_TRUE; //Device needs to support anisotropic filtering
 
     VkDeviceCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -449,30 +454,7 @@ void Vulkan_Window::create_image_views()
 
     for (size_t i = 0; i < swap_chain_images.size(); i++)
     {
-        VkImageViewCreateInfo create_info{};
-        create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        create_info.image = swap_chain_images[i];
-
-        create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        create_info.format = swap_chain_image_format;
-
-        //Default color channel mapping
-        create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-
-        //Single layer image, no mipmapping
-        create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        create_info.subresourceRange.baseMipLevel = 0;
-        create_info.subresourceRange.levelCount = 1;
-        create_info.subresourceRange.baseArrayLayer = 0;
-        create_info.subresourceRange.layerCount = 1;
-
-        if (vkCreateImageView(device, &create_info, nullptr, &swap_chain_image_views[i]) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create image views!");
-        }
+        swap_chain_image_views[i] = create_image_view(swap_chain_images[i], swap_chain_image_format);
     }
 }
 
@@ -532,11 +514,6 @@ void Vulkan_Window::create_render_pass()
     {
         throw std::runtime_error("Failed to create render pass!");
     }
-
-
-
-
-
 }
 
 void Vulkan_Window::create_descriptor_set_layout()
@@ -967,6 +944,80 @@ void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
         &region);
 
     end_single_time_commands(command_buffer);
+}
+
+VkImageView Vulkan_Window::create_image_view(VkImage image, VkFormat format)
+{
+    VkImageViewCreateInfo view_info{};
+    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_info.image = image;
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.format = format;
+
+    //Default color channel mapping (SWIZZLE to default)
+
+    //Single layer image, no mipmapping
+    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+
+    VkImageView image_view;
+    if (vkCreateImageView(device, &view_info, nullptr, &image_view) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create image view!");
+    }
+
+    return image_view;
+}
+
+void Vulkan_Window::create_texture_image_view()
+{
+    texture_image_view = create_image_view(texture_image, VK_FORMAT_R8G8B8A8_SRGB);
+
+}
+
+void Vulkan_Window::create_texture_sampler()
+{
+    VkSamplerCreateInfo sampler_info{};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+    //Magnification and minification interpolation.
+    //Nearest is pixelated, linear is smooth
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+
+    //How to handle when the surface is larger than the texture
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(physical_device, &properties);
+
+    sampler_info.anisotropyEnable = VK_TRUE;
+    sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+
+    //What color to use when ADDRESS MODE is set to border clamp
+    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    //Use 0..1 if false or 0..TexWidth/0..TexHeight if true for texture coordinates
+    sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+    sampler_info.compareEnable = VK_FALSE;
+    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+
+    //No mip mapping at the moment, for later?
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.mipLodBias = 0.0f;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = 0.0f;
+
+    if (vkCreateSampler(device, &sampler_info, nullptr, &texture_sampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create texture sampler!");
+    }
 }
 
 /// <summary>
@@ -1525,7 +1576,11 @@ int Vulkan_Window::rate_physical_device(const VkPhysicalDevice& device) const
         swap_chain_adequate = !swap_chain_support.formats.empty() && !swap_chain_support.present_modes.empty();
     }
 
-    if (!indices.is_complete() && !extensions_supported && !swap_chain_adequate)
+    //Anisotropic filtering is required, check capability using the physical device features struct
+    VkPhysicalDeviceFeatures supportedFeatures;
+    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
+
+    if (!indices.is_complete() && !extensions_supported && !swap_chain_adequate && !supportedFeatures.samplerAnisotropy)
     {
         return 0;
     }
