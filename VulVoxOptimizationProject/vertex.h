@@ -4,6 +4,7 @@ struct Vertex
 {
     glm::vec2 position;
     glm::vec3 color;
+    glm::vec2 texture_coordinates;
 
     /// <summary>
     /// Returns a description of the input buffer containing vertices
@@ -24,9 +25,9 @@ struct Vertex
     /// Each descriptor contains the format and byte offset with respect to the vertex struct
     /// </summary>
     /// <returns></returns>
-    static std::array<VkVertexInputAttributeDescription, 2> get_attribute_descriptions()
+    static std::array<VkVertexInputAttributeDescription, 3> get_attribute_descriptions()
     {
-        std::array<VkVertexInputAttributeDescription, 2> attribute_descriptions{};
+        std::array<VkVertexInputAttributeDescription, 3> attribute_descriptions{};
 
         attribute_descriptions[0].binding = 0; //Source array binding index
         attribute_descriptions[0].location = 0; //Location index in shader
@@ -38,9 +39,10 @@ struct Vertex
         attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
         attribute_descriptions[1].offset = offsetof(Vertex, color); //byte offset of position in class vertex
 
-
-
-
+        attribute_descriptions[2].binding = 0; //Source array binding index
+        attribute_descriptions[2].location = 2; //Location index in shader
+        attribute_descriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+        attribute_descriptions[2].offset = offsetof(Vertex, texture_coordinates); //byte offset of position in class vertex
 
         return attribute_descriptions;
     }

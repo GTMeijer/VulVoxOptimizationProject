@@ -59,7 +59,7 @@ private:
     void create_swap_chain();
     void create_image_views();
     void create_render_pass();
-    void create_descriptor_set_layout(); //Describes uniform buffers
+    void create_descriptor_set_layout(); //Describes uniform buffers and image samplers
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
@@ -157,7 +157,7 @@ private:
 
     VkImage texture_image;
     VkDeviceMemory texture_image_memory;
-    
+
     VkImageView texture_image_view;
     VkSampler texture_sampler;
 
@@ -178,10 +178,10 @@ private:
 
     const std::vector<Vertex> vertices =
     {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{ 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{ 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}}
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+        {{ 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+        {{ 0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+        {{-0.5f,  0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
     };
 
     //16bit for now, >65535 needs 32

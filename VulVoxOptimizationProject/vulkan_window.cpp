@@ -42,8 +42,6 @@ void Vulkan_Window::draw_frame()
     vkResetCommandBuffer(command_buffers[current_frame], 0);
     record_command_buffer(command_buffers[current_frame], image_index);
 
-
-
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -78,7 +76,7 @@ void Vulkan_Window::draw_frame()
     present_info.pSwapchains = swap_chains.data();
     present_info.pImageIndices = &image_index;
 
-    //Dont need to collect the draw results because the present function returns is as well
+    //Dont need to collect the draw results because the present function returns them as well
     present_info.pResults = nullptr;
 
     result = vkQueuePresentKHR(present_queue, &present_info);
@@ -513,8 +511,14 @@ void Vulkan_Window::create_render_pass()
     }
 }
 
+/// <summary>
+/// Creates the descriptor sets that describe the layout of the data buffers in our pipeline.
+/// Some hardware only allows up to four descriptor sets being created so, 
+/// instead of allocating a seperate set for each resource we bind them together into one.
+/// </summary>
 void Vulkan_Window::create_descriptor_set_layout()
 {
+    //Layout binding for the uniform buffer
     VkDescriptorSetLayoutBinding ubo_layout_binding{};
     ubo_layout_binding.binding = 0; //Same as in shader
     ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -522,10 +526,21 @@ void Vulkan_Window::create_descriptor_set_layout()
     ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //This buffer is (only) referenced in the vertex stage
     ubo_layout_binding.pImmutableSamplers = nullptr; //Optional
 
+    //Layout binding for the image sampler
+    VkDescriptorSetLayoutBinding sampler_layout_binding{};
+    sampler_layout_binding.binding = 1;
+    sampler_layout_binding.descriptorCount = 1;
+    sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    sampler_layout_binding.pImmutableSamplers = nullptr;
+    sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; //Connect to fragment shader stage
+
+    //Bind the layout bindings in the single descriptor set layout
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding };
+
     VkDescriptorSetLayoutCreateInfo layout_info{};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layout_info.bindingCount = 1;
-    layout_info.pBindings = &ubo_layout_binding;
+    layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
+    layout_info.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS)
     {
@@ -1103,14 +1118,18 @@ void Vulkan_Window::create_uniform_buffers()
 
 void Vulkan_Window::create_descriptor_pool()
 {
-    VkDescriptorPoolSize pool_size{};
-    pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_size.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    std::array<VkDescriptorPoolSize, 2> pool_sizes{};
+
+    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_sizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    pool_sizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 
     VkDescriptorPoolCreateInfo pool_info{};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.poolSizeCount = 1;
-    pool_info.pPoolSizes = &pool_size;
+    pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
+    pool_info.pPoolSizes = pool_sizes.data();
     pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     pool_info.flags = 0;
 
@@ -1144,19 +1163,34 @@ void Vulkan_Window::create_descriptor_sets()
         buffer_info.offset = 0;
         buffer_info.range = sizeof(MVP);
 
-        VkWriteDescriptorSet descriptor_write{};
-        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write.dstSet = descriptor_sets[i]; //Binding to update
-        descriptor_write.dstBinding = 0; //Binding index equal to shader binding inde
-        descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
-        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptor_write.descriptorCount = 1; //A single buffer info struct
-        descriptor_write.pBufferInfo = &buffer_info; //Data and layout of buffer
-        descriptor_write.pImageInfo = nullptr; //Optional, only used for image data
-        descriptor_write.pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
+        VkDescriptorImageInfo image_info{};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_info.imageView = texture_image_view;
+        image_info.sampler = texture_sampler;
+
+        std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
+
+        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[0].dstSet = descriptor_sets[i]; //Binding to update
+        descriptor_writes[0].dstBinding = 0; //Binding index equal to shader binding index
+        descriptor_writes[0].dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_writes[0].descriptorCount = 1; //A single buffer info struct
+        descriptor_writes[0].pBufferInfo = &buffer_info; //Data and layout of buffer
+        descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
+        descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
+
+        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[1].dstSet = descriptor_sets[i]; //Binding to update
+        descriptor_writes[1].dstBinding = 1; //Binding index equal to shader binding index
+        descriptor_writes[1].dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[1].descriptorCount = 1; //A single buffer info struct
+        descriptor_writes[1].pImageInfo = &image_info; //This is an image sampler so we provide an image data description
 
         //Apply updates
-        vkUpdateDescriptorSets(device, 1, &descriptor_write, 0, nullptr); //Only write descriptor, no copy
+        //Only write descriptor, no copy, so copy variable is 0
+        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
     }
 }
 
