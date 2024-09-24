@@ -26,6 +26,8 @@
 #include <GLFW/glfw3.h>
 
 //GLM
+//Force depth range from 0.0 to 1.0 (Vulkan standard), instead of -1.0 to 1.0
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
