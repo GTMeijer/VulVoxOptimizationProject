@@ -169,16 +169,6 @@ void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
 
-    vkDestroySampler(device, texture_sampler, nullptr);
-    vkDestroyImageView(device, texture_image_view, nullptr);
-    vkDestroyImage(device, texture_image, nullptr);
-    vkFreeMemory(device, texture_image_memory, nullptr);
-
-    //Descriptor sets will be destroyed with the pool
-    vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
-
-    vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
-
     vkDestroyPipeline(device, graphics_pipeline, nullptr);
     vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
     vkDestroyRenderPass(device, render_pass, nullptr);
@@ -189,6 +179,15 @@ void Vulkan_Window::cleanup()
         vkFreeMemory(device, uniform_buffers_memory[i], nullptr);
     }
 
+    //Descriptor sets will be destroyed with the pool
+    vkDestroyDescriptorPool(device, descriptor_pool, nullptr);
+
+    vkDestroySampler(device, texture_sampler, nullptr);
+    vkDestroyImageView(device, texture_image_view, nullptr);
+
+    vkDestroyImage(device, texture_image, nullptr);
+    vkFreeMemory(device, texture_image_memory, nullptr);
+
     vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
 
     vkDestroyBuffer(device, index_buffer, nullptr);
@@ -196,8 +195,6 @@ void Vulkan_Window::cleanup()
 
     vkDestroyBuffer(device, vertex_buffer, nullptr);
     vkFreeMemory(device, vertex_buffer_memory, nullptr);
-
-
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
