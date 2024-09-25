@@ -38,6 +38,13 @@
 //#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+//Tiny object loader, library for model loading
+#include <tiny_obj_loader.h>
+
 #include "utils.h"
 #include "vertex.h"
 #include "mvp.h"
+
+
+const std::string MODEL_PATH = "models/konata.obj";
+const std::string TEXTURE_PATH = "textures/konata_texture.png";

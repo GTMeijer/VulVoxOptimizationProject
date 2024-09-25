@@ -98,6 +98,50 @@ void Vulkan_Window::draw_frame()
     current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
 }
 
+void Vulkan_Window::load_model()
+{
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn;
+    std::string err;
+
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
+    {
+        throw std::runtime_error(warn + err);
+    }
+
+    for (const auto& shape : shapes)
+    {
+        for (const auto& index : shape.mesh.indices)
+        {
+            Vertex vertex{};
+
+            //tiny obj loader packs the vertices as three floats, so multiply index by three
+            vertex.position =
+            {
+                attrib.vertices[3 * index.vertex_index + 0],
+                attrib.vertices[3 * index.vertex_index + 1],
+                attrib.vertices[3 * index.vertex_index + 2]
+            };
+
+            //Same for texture coordinates, but two instead
+            vertex.texture_coordinates = 
+            {
+                attrib.texcoords[2 * index.texcoord_index + 0],
+                1.0f - attrib.texcoords[2 * index.texcoord_index + 1] //Flip the vertical axis for vulkan standard
+            };
+
+            vertex.color = { 1.0, 1.0, 1.0f };
+
+            vertices.push_back(vertex);
+            indices.push_back(indices.size());
+        }
+    }
+
+    std::cout << "Model loaded." << std::endl;
+
+}
 void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
 {
     static auto start_time = std::chrono::high_resolution_clock::now();
@@ -107,9 +151,13 @@ void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
 
     //Rotate around the z-axis
     MVP mvp{};
-    mvp.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-    mvp.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain_extent.width / (float)swap_chain_extent.height, 0.1f, 10.0f);
+    mvp.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f, 0.25f, 0.25f)) * glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)) * glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1.0f, 0.0f, 0.0f));
+    mvp.view = glm::lookAt(glm::vec3(20.0f, 20.0f, 20.0f), glm::vec3(0.0f, 0.0f, 15.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain_extent.width / (float)swap_chain_extent.height, 0.1f, 100.0f);
+
+    //mvp.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //mvp.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain_extent.width / (float)swap_chain_extent.height, 0.1f, 10.0f);
 
     mvp.projection[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
 
@@ -153,6 +201,7 @@ void Vulkan_Window::init_vulkan()
     create_texture_image();
     create_texture_image_view();
     create_texture_sampler();
+    load_model();
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
@@ -537,8 +586,8 @@ void Vulkan_Window::create_render_pass()
 
 /// <summary>
 /// Creates the descriptor sets that describe the layout of the data buffers in our pipeline.
-/// Some hardware only allows up to four descriptor sets being created so, 
-/// instead of allocating a seperate set for each resource we bind them together into one.
+/// Some hardware only allows up to four descriptor sets being created,
+/// so instead of allocating a seperate set for each resource we bind them together into one.
 /// </summary>
 void Vulkan_Window::create_descriptor_set_layout()
 {
@@ -846,7 +895,7 @@ void Vulkan_Window::create_texture_image()
     int texture_channels;
 
     //Load texture image, force alpha channel
-    stbi_uc* pixels = stbi_load("textures/konata.png", &texture_width, &texture_height, &texture_channels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texture_width, &texture_height, &texture_channels, STBI_rgb_alpha);
     VkDeviceSize image_size = texture_width * texture_height * 4;
 
     if (!pixels)
@@ -1401,7 +1450,7 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     vkCmdBindVertexBuffers(command_buffer, 0, vertex_buffers.size(), vertex_buffers.data(), offsets.data());
 
     //Set the index buffers
-    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(command_buffer, index_buffer, 0, VK_INDEX_TYPE_UINT32);
 
     //Set the uniform buffers
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
@@ -1514,17 +1563,18 @@ void Vulkan_Window::pick_physical_device()
         i++;
     }
 
-    std::cout << std::endl;
-
     //Use the highest scoring GPU. If score is 0, no suitable GPU was found.
     if (device_candidates.rbegin()->first > 0)
     {
         physical_device = device_candidates.rbegin()->second;
+        std::cout << get_physical_device_name(physical_device) << " selected." << std::endl;
     }
     else
     {
         throw std::runtime_error("Failed to find a suitable GPU!");
     }
+
+    std::cout << std::endl;
 }
 
 VkSurfaceFormatKHR Vulkan_Window::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const
