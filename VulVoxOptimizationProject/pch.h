@@ -11,6 +11,7 @@
 #include <vector>
 #include <array>
 #include <map>
+#include <unordered_map>
 #include <cstring>
 #include <optional>
 #include <set>
@@ -19,6 +20,7 @@
 #include <fstream>
 #include <filesystem>
 #include <chrono>
+
 
 //GLFW & Vulkan
 #define GLFW_INCLUDE_VULKAN
@@ -30,6 +32,10 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+//Include hash function for comparing vertices in an unordered map structure
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 //Vulkan
 #include <vulkan/vk_enum_string_helper.h> //for error code conversion

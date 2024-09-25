@@ -111,6 +111,8 @@ void Vulkan_Window::load_model()
         throw std::runtime_error(warn + err);
     }
 
+    std::unordered_map<Vertex, uint32_t> unique_vertices{};
+
     for (const auto& shape : shapes)
     {
         for (const auto& index : shape.mesh.indices)
@@ -126,7 +128,7 @@ void Vulkan_Window::load_model()
             };
 
             //Same for texture coordinates, but two instead
-            vertex.texture_coordinates = 
+            vertex.texture_coordinates =
             {
                 attrib.texcoords[2 * index.texcoord_index + 0],
                 1.0f - attrib.texcoords[2 * index.texcoord_index + 1] //Flip the vertical axis for vulkan standard
@@ -135,11 +137,19 @@ void Vulkan_Window::load_model()
             vertex.color = { 1.0, 1.0, 1.0f };
 
             vertices.push_back(vertex);
-            indices.push_back(indices.size());
+            //indices.push_back(indices.size());
+
+            if (unique_vertices.count(vertex) == 0)
+            {
+                unique_vertices[vertex] = static_cast<uint32_t>(vertices.size());
+                vertices.push_back(vertex);
+            }
+
+            indices.push_back(unique_vertices[vertex]);
         }
     }
 
-    std::cout << "Model loaded." << std::endl;
+    std::cout << "Model loaded containing " << vertices.size() << " vertices." << std::endl;
 
 }
 void Vulkan_Window::update_uniform_buffer(uint32_t current_image)

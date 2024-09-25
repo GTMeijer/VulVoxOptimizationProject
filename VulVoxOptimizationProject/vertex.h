@@ -46,4 +46,23 @@ struct Vertex
 
         return attribute_descriptions;
     }
+
+    bool operator==(const Vertex& other) const
+    {
+        return position == other.position && color == other.color && texture_coordinates == other.texture_coordinates;
+    }
 };
+
+//Create hash function for vertices (useful for comparing in (unordered) maps)
+namespace std
+{
+    template<> struct hash<Vertex>
+    {
+        size_t operator()(Vertex const& vertex) const
+        {
+            return ((hash<glm::vec3>()(vertex.position) ^
+                (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^
+                (hash<glm::vec2>()(vertex.texture_coordinates) << 1);
+        }
+    };
+}
