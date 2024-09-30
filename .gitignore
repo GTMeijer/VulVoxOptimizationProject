@@ -6,6 +6,7 @@
 *.lo
 *.o
 *.obj
+!/VulVoxOptimizationProject/models/*
 
 # Precompiled Headers
 *.gch
