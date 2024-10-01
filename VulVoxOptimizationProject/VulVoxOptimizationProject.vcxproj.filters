@@ -30,6 +30,9 @@
     <ClCompile Include="mvp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="instance_data.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utils.h">
@@ -45,6 +48,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="mvp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="instance_data.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

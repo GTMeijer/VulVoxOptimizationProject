@@ -104,6 +104,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="instance_data.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mvp.cpp" />
     <ClCompile Include="pch.cpp">
@@ -113,6 +114,7 @@
     <ClCompile Include="vulkan_window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="instance_data.h" />
     <ClInclude Include="mvp.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="utils.h" />
