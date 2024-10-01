@@ -51,6 +51,7 @@
 #include "vertex.h"
 #include "mvp.h"
 
+#include "vulkan_instance.h"
 
 const std::string MODEL_PATH = "models/konata.obj";
 const std::string TEXTURE_PATH = "textures/konata_texture.png";

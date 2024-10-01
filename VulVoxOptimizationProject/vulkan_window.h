@@ -25,33 +25,6 @@ private:
     bool is_initialized = false;
     int frame_count = 0;
 
-    /// <summary>
-    /// Struct containing the indices of the command queues we require
-    /// For this program we need a graphics and present capable queue.
-    /// The families supporting these queues are stored in this class
-    /// </summary>
-    struct Queue_Family_Indices
-    {
-        std::optional<uint32_t> graphics_family;
-        std::optional<uint32_t> present_family;
-
-        /// <summary>
-        /// Check if all queue families are filled.
-        /// </summary>
-        /// <returns>Returns true if all queue families indices are initialized.</returns>
-        bool is_complete() const
-        {
-            return graphics_family.has_value() && present_family.has_value();
-        }
-    };
-
-    struct Swap_Chain_Support_Details
-    {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> present_modes;
-    };
-
     void init_window();
     void init_vulkan();
 
@@ -66,18 +39,7 @@ private:
     void update_uniform_buffer(uint32_t current_image);
 
     //Vulkan and device context creation functions
-    void create_instance();
     void create_surface();
-    void create_logical_device();
-
-    //Physical device selection helper functions
-    void pick_physical_device();
-    int rate_physical_device(const VkPhysicalDevice& device) const;
-    bool check_glfw_extension_support() const;
-    bool check_device_extension_support(const VkPhysicalDevice& device) const;
-    bool check_validation_layer_support() const;
-    Swap_Chain_Support_Details query_swap_chain_support(const VkPhysicalDevice& device) const;
-    Vulkan_Window::Queue_Family_Indices find_queue_families(const VkPhysicalDevice& device) const;
 
     //Swap chain creation functions
     void create_swap_chain();
@@ -99,7 +61,6 @@ private:
 
     //Depth test setup functions
     void create_depth_resources(); //Depth buffer resources
-    VkFormat find_depth_format();
 
     void create_vertex_buffer();
     void create_index_buffer();
@@ -128,29 +89,17 @@ private:
     VkCommandBuffer begin_single_time_commands();
     void end_single_time_commands(VkCommandBuffer command_buffer);
 
-    std::string get_physical_device_name(const VkPhysicalDevice& device) const;
-    std::string get_physical_device_type(const VkPhysicalDevice& device) const;
-
     VkShaderModule create_shader_module(const std::vector<char>& bytecode);
 
-    uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties);
 
     bool has_stencil_component(VkFormat format) const;
-    VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-
 
     uint32_t width = 800;
     uint32_t height = 600;
     GLFWwindow* window;
 
     //Vulkan and device contexts
-    VkInstance instance; //Vulkan context (driver access)
-    VkPhysicalDevice physical_device = nullptr; //Physical GPU
-    VkDevice device; //Logical GPU context
-
-    //Queues that send commands to the command buffers
-    VkQueue graphics_queue;
-    VkQueue present_queue;
+    Vulkan_Instance vulkan_instance;
 
     //Command pool and the allocated command buffers that store the commands send to the GPU
     VkCommandPool command_pool;
@@ -161,9 +110,9 @@ private:
     std::vector<VkSemaphore> render_finished_semaphores;
     std::vector<VkFence> in_flight_fences; //Fence for draw finish
 
-    //Swapchain context and information
     VkSurfaceKHR surface;
-
+    
+    //Swapchain context and information
     VkSwapchainKHR swap_chain;
     VkFormat swap_chain_image_format;
 
@@ -207,16 +156,10 @@ private:
     VkDeviceMemory depth_image_memory;
     VkImageView depth_image_view;
 
-
-    //Required device extensions
-    const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-    const std::vector<const char*> validation_layers = { "VK_LAYER_KHRONOS_validation" };
-
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing
     static const int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t current_frame = 0;
-
 
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -241,12 +184,6 @@ private:
     //    0, 1, 2, 2, 3, 0,
     //    4, 5, 6, 6, 7, 4
     //};
-
-#ifdef NDEBUG
-    const bool enableValidationLayers = false;
-#else
-    const bool enableValidationLayers = true;
-#endif
 };
 
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
