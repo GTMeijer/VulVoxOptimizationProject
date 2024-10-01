@@ -16,8 +16,8 @@ void Vulkan_Swap_Chain::create_swap_chain(GLFWwindow* window, VkSurfaceKHR surfa
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.present_modes);
     std::cout << "Present mode: " << string_VkPresentModeKHR(present_mode) << std::endl;
 
-    VkExtent2D extent = choose_swap_extent(swap_chain_support.capabilities, window);
-    std::cout << "Image buffer extent: " << extent.width << " x " << extent.height << std::endl;
+    VkExtent2D swap_extent = choose_swap_extent(swap_chain_support.capabilities, window);
+    std::cout << "Image buffer extent: " << swap_extent.width << " x " << swap_extent.height << std::endl;
 
     std::cout << std::endl;
 
@@ -37,7 +37,7 @@ void Vulkan_Swap_Chain::create_swap_chain(GLFWwindow* window, VkSurfaceKHR surfa
     create_info.minImageCount = image_count;
     create_info.imageFormat = surface_format.format;
     create_info.imageColorSpace = surface_format.colorSpace;
-    create_info.imageExtent = extent;
+    create_info.imageExtent = swap_extent;
     create_info.imageArrayLayers = 1; //Always one, unless we are working on a stereoscopic 3D application
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //We are writing directly to the image buffer, change when adding post-processing
 
@@ -78,7 +78,7 @@ void Vulkan_Swap_Chain::create_swap_chain(GLFWwindow* window, VkSurfaceKHR surfa
     vkGetSwapchainImagesKHR(vulkan_instance->device, swap_chain, &image_count, swap_chain_images.data());
 
     image_format = surface_format.format;
-    this->extent = extent;
+    extent = swap_extent;
 
     create_image_views();
 }
