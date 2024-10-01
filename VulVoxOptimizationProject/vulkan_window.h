@@ -42,7 +42,6 @@ private:
 
     void update_uniform_buffer(uint32_t current_image);
 
-    //Vulkan and device context creation functions
     void create_surface();
 
     //Swap chain recreation functions
@@ -86,7 +85,6 @@ private:
     void end_single_time_commands(VkCommandBuffer command_buffer);
 
     VkShaderModule create_shader_module(const std::vector<char>& bytecode);
-
 
     bool has_stencil_component(VkFormat format) const;
 
