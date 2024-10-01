@@ -4,6 +4,11 @@ class Vulkan_Window
 {
 public:
 
+    Vulkan_Window() : swap_chain(&vulkan_instance)
+    {
+
+    }
+
     void init()
     {
         init_window();
@@ -32,7 +37,6 @@ private:
     void draw_frame();
 
     void cleanup();
-    void cleanup_swap_chain();
 
     void load_model();
 
@@ -41,17 +45,9 @@ private:
     //Vulkan and device context creation functions
     void create_surface();
 
-    //Swap chain creation functions
-    void create_swap_chain();
+    //Swap chain recreation functions
     void recreate_swap_chain();
-
-    //Swap chain creation helper functions
-    VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const;
-    VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const;
-    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) const;
-
-    void create_image_views();
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags);
+    void cleanup_swap_chain();
 
     void create_render_pass();
     void create_descriptor_set_layout(); //Describes uniform buffers and image samplers
@@ -101,6 +97,8 @@ private:
     //Vulkan and device contexts
     Vulkan_Instance vulkan_instance;
 
+    Vulkan_Swap_Chain swap_chain;
+
     //Command pool and the allocated command buffers that store the commands send to the GPU
     VkCommandPool command_pool;
     std::vector<VkCommandBuffer> command_buffers;
@@ -111,21 +109,12 @@ private:
     std::vector<VkFence> in_flight_fences; //Fence for draw finish
 
     VkSurfaceKHR surface;
-    
-    //Swapchain context and information
-    VkSwapchainKHR swap_chain;
-    VkFormat swap_chain_image_format;
-
-    std::vector<VkImage> swap_chain_images;
-    std::vector<VkImageView> swap_chain_image_views;
-    VkExtent2D swap_chain_extent;
 
     VkRenderPass render_pass; //Stores information about the render images
 
     VkDescriptorSetLayout descriptor_set_layout;
     VkPipelineLayout pipeline_layout;
     VkPipeline graphics_pipeline; //GPU draw state (shaders, rasterization options, depth settings, etc.)
-    std::vector<VkFramebuffer> swap_chain_framebuffers; //Target images for renderpass
 
 
     //Stuff that gets send to the shaders
