@@ -54,6 +54,7 @@
 #include "vulkan_instance.h"
 #include "vulkan_image.h"
 #include "vulkan_swap_chain.h"
+#include "model.h"
 
 const std::string MODEL_PATH = "models/konata.obj";
 const std::string TEXTURE_PATH = "textures/konata_texture.png";

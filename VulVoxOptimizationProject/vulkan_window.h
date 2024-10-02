@@ -38,8 +38,6 @@ private:
 
     void cleanup();
 
-    void load_model();
-
     void update_uniform_buffer(uint32_t current_image);
 
     void create_surface();
@@ -148,9 +146,7 @@ private:
     static const int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t current_frame = 0;
 
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-
+    Model konata_model;
 
     //const std::vector<Vertex> vertices =
     //{

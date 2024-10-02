@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "vulkan_window.h"
 
-
 //TODO: Probably do some lambda stuff here?
 void Vulkan_Window::main_loop()
 {
@@ -102,60 +101,6 @@ void Vulkan_Window::draw_frame()
     current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Vulkan_Window::load_model()
-{
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn;
-    std::string err;
-
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
-    {
-        throw std::runtime_error(warn + err);
-    }
-
-    std::unordered_map<Vertex, uint32_t> unique_vertices{};
-
-    for (const auto& shape : shapes)
-    {
-        for (const auto& index : shape.mesh.indices)
-        {
-            Vertex vertex{};
-
-            //tiny obj loader packs the vertices as three floats, so multiply index by three
-            vertex.position =
-            {
-                attrib.vertices[3 * index.vertex_index + 0],
-                attrib.vertices[3 * index.vertex_index + 1],
-                attrib.vertices[3 * index.vertex_index + 2]
-            };
-
-            //Same for texture coordinates, but two instead
-            vertex.texture_coordinates =
-            {
-                attrib.texcoords[2 * index.texcoord_index + 0],
-                1.0f - attrib.texcoords[2 * index.texcoord_index + 1] //Flip the vertical axis for vulkan standard
-            };
-
-            vertex.color = { 1.0, 1.0, 1.0f };
-
-            vertices.push_back(vertex);
-            //indices.push_back(indices.size());
-
-            if (unique_vertices.count(vertex) == 0)
-            {
-                unique_vertices[vertex] = static_cast<uint32_t>(vertices.size());
-                vertices.push_back(vertex);
-            }
-
-            indices.push_back(unique_vertices[vertex]);
-        }
-    }
-
-    std::cout << "Model loaded containing " << vertices.size() << " vertices." << std::endl;
-
-}
 void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
 {
     static auto start_time = std::chrono::high_resolution_clock::now();
@@ -217,7 +162,9 @@ void Vulkan_Window::init_vulkan()
     create_texture_image();
     create_texture_image_view();
     create_texture_sampler();
-    load_model();
+
+    konata_model = Model(MODEL_PATH);
+
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
@@ -675,7 +622,7 @@ void Vulkan_Window::create_depth_resources()
 /// </summary>
 void Vulkan_Window::create_vertex_buffer()
 {
-    VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+    VkDeviceSize buffer_size = konata_model.get_vertices_size();
 
     //Create staging buffer that transfers data between the host and device
     VkBuffer staging_buffer;
@@ -688,7 +635,7 @@ void Vulkan_Window::create_vertex_buffer()
 
     void* data;
     vkMapMemory(vulkan_instance.device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, vertices.data(), (size_t)buffer_size);
+    memcpy(data, konata_model.get_vertices_ptr(), (size_t)buffer_size);
     vkUnmapMemory(vulkan_instance.device, staging_buffer_memory);
 
     //Create vertex buffer as device only buffer
@@ -708,7 +655,7 @@ void Vulkan_Window::create_vertex_buffer()
 
 void Vulkan_Window::create_index_buffer()
 {
-    VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+    VkDeviceSize buffer_size = konata_model.get_indices_size();
     VkBuffer staging_buffer;
     VkDeviceMemory staging_buffer_memory;
     create_buffer(buffer_size,
@@ -719,7 +666,7 @@ void Vulkan_Window::create_index_buffer()
 
     void* data;
     vkMapMemory(vulkan_instance.device, staging_buffer_memory, 0, buffer_size, 0, &data);
-    memcpy(data, indices.data(), (size_t)buffer_size);
+    memcpy(data, konata_model.get_indices_ptr(), (size_t)buffer_size);
     vkUnmapMemory(vulkan_instance.device, staging_buffer_memory);
 
     //Create index buffer as device only buffer
@@ -1219,7 +1166,7 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
 
     //Draw command, set vertex and instance counts (we're not using instancing) and indices
-    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(command_buffer);
 
