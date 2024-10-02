@@ -1,27 +1,31 @@
 #pragma once
 
-inline VkImageView create_image_view(VkDevice device, VkImage image, VkFormat format, VkImageAspectFlags aspect_flags)
+class Image
 {
-    VkImageViewCreateInfo view_info{};
-    view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_info.image = image;
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = format;
+public:
 
-    //Default color channel mapping (SWIZZLE to default)
+    Image() = default;
 
-    //Single layer image, no mipmapping
-    view_info.subresourceRange.aspectMask = aspect_flags;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
+    void create_image(Vulkan_Instance* vulkan_instance, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags);
+    void create_image_view();
 
+    void transition_image_layout(VkCommandBuffer command_buffer, VkImageLayout new_layout);
+
+    void destroy();
+
+    VkImage image;
+    VkDeviceMemory image_memory;
     VkImageView image_view;
-    if (vkCreateImageView(device, &view_info, nullptr, &image_view) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create image view!");
-    }
 
-    return image_view;
-}
+    uint32_t width;
+    uint32_t height;
+
+    VkFormat format;
+    VkImageAspectFlags aspect_flags;
+
+private:
+
+    Vulkan_Instance* vulkan_instance;
+
+    VkImageLayout current_layout;
+};

@@ -184,6 +184,21 @@ void Vulkan_Swap_Chain::create_image_views()
 
     for (size_t i = 0; i < swap_chain_images.size(); i++)
     {
-        image_views[i] = create_image_view(vulkan_instance->device, swap_chain_images[i], image_format, VK_IMAGE_ASPECT_COLOR_BIT);
+        VkImageViewCreateInfo view_info{};
+        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        view_info.image = swap_chain_images[i];
+        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view_info.format = image_format;
+
+        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        view_info.subresourceRange.baseMipLevel = 0;
+        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.baseArrayLayer = 0;
+        view_info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(vulkan_instance->device, &view_info, nullptr, &image_views[i]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create image view!");
+        }
     }
 }

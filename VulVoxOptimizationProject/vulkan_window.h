@@ -18,7 +18,6 @@ public:
 
     void run()
     {
-
         main_loop();
         cleanup();
     }
@@ -74,7 +73,6 @@ private:
     void create_texture_sampler();
 
     //Image creation help functions
-    void create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory);
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
@@ -131,15 +129,12 @@ private:
     std::vector<VkDescriptorSet> descriptor_sets;
 
     //Image containing the model texture
-    VkImage texture_image;
-    VkDeviceMemory texture_image_memory;
-    VkImageView texture_image_view;
+    Image texture_image;
     VkSampler texture_sampler;
 
+
     //Image used for depth testing
-    VkImage depth_image;
-    VkDeviceMemory depth_image_memory;
-    VkImageView depth_image_view;
+    Image depth_image;
 
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing

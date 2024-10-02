@@ -195,10 +195,8 @@ void Vulkan_Window::cleanup()
 
     //Texture cleanup
     vkDestroySampler(vulkan_instance.device, texture_sampler, nullptr);
-    vkDestroyImageView(vulkan_instance.device, texture_image_view, nullptr);
 
-    vkDestroyImage(vulkan_instance.device, texture_image, nullptr);
-    vkFreeMemory(vulkan_instance.device, texture_image_memory, nullptr);
+    texture_image.destroy();
 
     //Cleanup descriptor set layout and buffers
     vkDestroyDescriptorSetLayout(vulkan_instance.device, descriptor_set_layout, nullptr);
@@ -564,7 +562,7 @@ void Vulkan_Window::create_framebuffers()
     for (size_t i = 0; i < swap_chain.image_views.size(); i++)
     {
         //The swap chain uses multiple images, the render pipeline uses a single depth buffer (protected by semaphores)
-        std::array<VkImageView, 2> attachments = { swap_chain.image_views[i], depth_image_view };
+        std::array<VkImageView, 2> attachments = { swap_chain.image_views[i], depth_image.image_view };
 
         VkFramebufferCreateInfo framebuffer_info{};
         framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -605,16 +603,26 @@ void Vulkan_Window::create_depth_resources()
 {
     VkFormat depth_format = vulkan_instance.find_depth_format();
 
-    create_image(
+    depth_image.create_image(
+        &vulkan_instance,
+        swap_chain.extent.width, swap_chain.extent.height,
+        depth_format,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    /*create_image(
         swap_chain.extent.width, swap_chain.extent.height,
         depth_format,
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         depth_image,
-        depth_image_memory);
+        depth_image_memory,
+        VK_IMAGE_ASPECT_DEPTH_BIT);*/
 
-    depth_image_view = create_image_view(vulkan_instance.device, depth_image, depth_format, VK_IMAGE_ASPECT_DEPTH_BIT);
+    depth_image.create_image_view();
 }
 
 /// <summary>
@@ -750,7 +758,7 @@ void Vulkan_Window::create_descriptor_sets()
 
         VkDescriptorImageInfo image_info{};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView = texture_image_view;
+        image_info.imageView = texture_image.image_view;
         image_info.sampler = texture_sampler;
 
         std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
@@ -905,122 +913,45 @@ void Vulkan_Window::create_texture_image()
 
     //Texels == pixels
 
-    create_image(texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, texture_image, texture_image_memory);
+    texture_image.create_image(&vulkan_instance, texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
     //Change layout of target image memory to be optimal for writing destination
-    transition_image_layout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    {
+        VkCommandBuffer command_buffer = begin_single_time_commands();
+
+        texture_image.transition_image_layout(command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+        end_single_time_commands(command_buffer);
+    }
+
     //Transfer the image data from the staging buffer to the image memory
-    copy_buffer_to_image(staging_buffer, texture_image, static_cast<uint32_t>(texture_width), static_cast<uint32_t>(texture_height));
+    copy_buffer_to_image(staging_buffer, texture_image.image, texture_image.width, texture_image.height);
+
     //Change layout of image memory to be optimal for reading by a shader
-    transition_image_layout(texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    {
+        VkCommandBuffer command_buffer = begin_single_time_commands();
+
+        texture_image.transition_image_layout(command_buffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        end_single_time_commands(command_buffer);
+    }
 
     vkDestroyBuffer(vulkan_instance.device, staging_buffer, nullptr);
     vkFreeMemory(vulkan_instance.device, staging_buffer_memory, nullptr);
 }
 
-void Vulkan_Window::create_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& image_memory)
-{
-    //Descripe image memory format
-    VkImageCreateInfo image_info{};
-    image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.extent.width = width;
-    image_info.extent.height = height;
-    image_info.extent.depth = 1;
-    image_info.mipLevels = 1; //No mip mapping
-    image_info.arrayLayers = 1;
-    image_info.format = format; //Same as pixel buffers
-    image_info.tiling = tiling; //We dont need to access the images memory so no need for linear tiling
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //Discard after first transition
-    image_info.usage = usage; //Destination for buffer copy and readable by shader
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only one queue family will use the image (graphics)
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-    image_info.flags = 0; //Optional
-
-    if (vkCreateImage(vulkan_instance.device, &image_info, nullptr, &image) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create image!");
-    }
-
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(vulkan_instance.device, image, &memory_requirements);
-
-    //Allocate memory for the texture image
-    VkMemoryAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = memory_requirements.size;
-    allocate_info.memoryTypeIndex = vulkan_instance.find_memory_type(memory_requirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(vulkan_instance.device, &allocate_info, nullptr, &image_memory) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to allocate image memory!");
-    }
-
-    vkBindImageMemory(vulkan_instance.device, image, image_memory, 0);
-}
-
 void Vulkan_Window::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
 {
+    //Todo move to command class?
     VkCommandBuffer command_buffer = begin_single_time_commands();
-
-    //Create barrier to prevent reading before write is done
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = old_layout;
-    barrier.newLayout = new_layout;
-
-    //Queue family indices for ownership transfer, we dont want to do this here so set IGNORED
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-    barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0; //No mipmapping
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0; //No array
-    barrier.subresourceRange.layerCount = 1;
-
-    VkPipelineStageFlags source_stage;
-    VkPipelineStageFlags destination_stage;
-
-    if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-    {
-        //Transfer to write optimal layout
-        barrier.srcAccessMask = 0; //No need to wait
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT; //
-
-        source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; //Start immediately (start of pipeline)
-        destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-    {
-        //Transfer write optimal to optimal shader read layout
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-        source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    }
-    else
-    {
-        throw std::invalid_argument("Unsupported layout transition!");
-    }
-
-    //Send command for image barrier
-    vkCmdPipelineBarrier(command_buffer,
-        source_stage,
-        destination_stage,
-        0,
-        0, nullptr,
-        0, nullptr,
-        1, &barrier);
 
     end_single_time_commands(command_buffer);
 }
 
 void Vulkan_Window::create_texture_image_view()
 {
-    texture_image_view = create_image_view(vulkan_instance.device, texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+    //texture_image_view = create_image_view(vulkan_instance.device, texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+    texture_image.create_image_view();
 }
 
 void Vulkan_Window::create_texture_sampler()
@@ -1180,9 +1111,7 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
 void Vulkan_Window::cleanup_swap_chain()
 {
     //Destroy objects that depend on the swap chain
-    vkDestroyImageView(vulkan_instance.device, depth_image_view, nullptr);
-    vkDestroyImage(vulkan_instance.device, depth_image, nullptr);
-    vkFreeMemory(vulkan_instance.device, depth_image_memory, nullptr);
+    depth_image.destroy();
 
     //Destroy the swap chain
     swap_chain.cleanup_swap_chain();
@@ -1207,12 +1136,19 @@ void Vulkan_Window::recreate_swap_chain()
 
     create_depth_resources(); //Depend on depth image
     create_framebuffers(); //Depend on image views
-
 }
 
+/// <summary>
+/// Begins a single-use command buffer for short-lived operations.
+/// Allocates a primary command buffer from the specified command pool, 
+/// begins recording with the VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT flag, 
+/// and returns the command buffer.
+/// </summary>
+/// <returns>
+/// The allocated and ready-to-record VkCommandBuffer.
+/// </returns>
 VkCommandBuffer Vulkan_Window::begin_single_time_commands()
 {
-    //Setup temp buffer for transfer
 
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -1261,7 +1197,6 @@ VkShaderModule Vulkan_Window::create_shader_module(const std::vector<char>& byte
     {
         throw std::runtime_error("Failed to create shader module!");
     }
-
 
     return shader_module;
 }

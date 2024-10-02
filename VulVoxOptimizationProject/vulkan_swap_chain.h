@@ -40,6 +40,4 @@ private:
     void create_image_views();
 
     std::vector<VkImage> swap_chain_images;
-
-
 };
