@@ -612,16 +612,6 @@ void Vulkan_Window::create_depth_resources()
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    /*create_image(
-        swap_chain.extent.width, swap_chain.extent.height,
-        depth_format,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        depth_image,
-        depth_image_memory,
-        VK_IMAGE_ASPECT_DEPTH_BIT);*/
-
     depth_image.create_image_view();
 }
 
