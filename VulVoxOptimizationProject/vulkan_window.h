@@ -57,6 +57,7 @@ private:
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
+
     void create_descriptor_pool();
     void create_descriptor_sets();
 
@@ -113,14 +114,11 @@ private:
 
     //Stuff that gets send to the shaders
     //Vertex and index buffers holding the mesh data
-    VkBuffer vertex_buffer;
-    VkDeviceMemory vertex_buffer_memory;
-    VkBuffer index_buffer;
-    VkDeviceMemory index_buffer_memory;
+    Buffer vertex_buffer;
+    Buffer index_buffer;
 
     //Uniform buffers, data available across shaders
-    std::vector<VkBuffer> uniform_buffers;
-    std::vector<VkDeviceMemory> uniform_buffers_memory;
+    std::vector<Buffer> uniform_buffers;
     std::vector<void*> uniform_buffers_mapped;
 
     //Descriptor pool and sets, 
