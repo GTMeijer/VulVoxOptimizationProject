@@ -112,6 +112,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="vertex.cpp" />
+    <ClCompile Include="vulkan_buffer.cpp" />
     <ClCompile Include="vulkan_image.cpp" />
     <ClCompile Include="vulkan_instance.cpp" />
     <ClCompile Include="vulkan_swap_chain.cpp" />
@@ -124,6 +125,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="vertex.h" />
+    <ClInclude Include="vulkan_buffer.h" />
     <ClInclude Include="vulkan_image.h" />
     <ClInclude Include="vulkan_instance.h" />
     <ClInclude Include="vulkan_swap_chain.h" />

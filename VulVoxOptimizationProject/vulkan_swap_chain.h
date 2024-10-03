@@ -31,7 +31,6 @@ private:
     //Couple this swap chain to a specific vulkan instance (The swap chain will be destroyed before the instance)
     Vulkan_Instance* vulkan_instance;
 
-
     //Swap chain creation helper functions
     VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const;
     VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const;

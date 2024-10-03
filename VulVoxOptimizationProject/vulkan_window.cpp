@@ -96,7 +96,6 @@ void Vulkan_Window::draw_frame()
         throw std::runtime_error("Failed to present swap chain image!");
     }
 
-
     //Rotate to next frame resources
     current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
 }
