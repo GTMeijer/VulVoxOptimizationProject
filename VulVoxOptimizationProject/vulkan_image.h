@@ -31,5 +31,15 @@ private:
 
     Vulkan_Instance* vulkan_instance;
 
-    VkImageLayout current_layout;
+
+};
+
+class Texture
+{
+
+};
+
+class TextureArray
+{
+
 };

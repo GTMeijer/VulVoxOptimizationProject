@@ -133,6 +133,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\compile_shaders.bat" />
+    <None Include="shaders\instance_shader.frag" />
+    <None Include="shaders\instance_shader.vert" />
     <None Include="shaders\triangle_shader.frag" />
     <None Include="shaders\triangle_shader.vert" />
   </ItemGroup>

@@ -117,6 +117,8 @@ private:
     Buffer vertex_buffer;
     Buffer index_buffer;
 
+    Buffer instance_buffer;
+
     //Uniform buffers, data available across shaders
     std::vector<Buffer> uniform_buffers;
     std::vector<void*> uniform_buffers_mapped;
@@ -128,15 +130,15 @@ private:
 
     //Image containing the model texture
     Image texture_image;
-    
+
 
     //Image used for depth testing
     Image depth_image;
-    
+
     Model konata_model;
 
 
-    
+
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing
     static const int MAX_FRAMES_IN_FLIGHT = 2;

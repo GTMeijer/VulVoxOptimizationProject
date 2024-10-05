@@ -961,6 +961,40 @@ void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
 
 void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
 {
+
+    //Describe a new render pass targeting the given image index in the swapchain
+    VkRenderPassBeginInfo render_pass_begin_info{};
+    render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+
+    //attach this render pass to the swap chain image
+    render_pass_begin_info.renderPass = render_pass;
+    render_pass_begin_info.framebuffer = swap_chain.framebuffers[image_index];
+
+    //Cover the whole swap chain image
+    render_pass_begin_info.renderArea.offset = { 0,0 };
+    render_pass_begin_info.renderArea.extent = swap_chain.extent;
+
+    //Clear to black (we use VK_ATTACHMENT_LOAD_OP_CLEAR)
+    //Clear order should be same as attachment order
+    std::array<VkClearValue, 2> clear_colors{};
+    clear_colors[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } }; //Clear image to black
+    clear_colors[1].depthStencil = { 1.0f, 0 }; //Clear depth image to 1.0 (far plane)
+    render_pass_begin_info.clearValueCount = static_cast<uint32_t>(clear_colors.size());
+    render_pass_begin_info.pClearValues = clear_colors.data();
+
+    //We set viewport and scissor to dynamic earlier, so we define them now
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swap_chain.extent.width);
+    viewport.height = static_cast<float>(swap_chain.extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0,0 };
+    scissor.extent = swap_chain.extent;
+
     //Start recording a command buffer
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -972,46 +1006,13 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
         throw std::runtime_error("Failed to begin recording command buffer!");
     }
 
-    //Start a new render pass targeting the given image index in the swapchain
-
-    VkRenderPassBeginInfo render_pass_info{};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-
-    //attach this render pass to the swap chain image
-    render_pass_info.renderPass = render_pass;
-    render_pass_info.framebuffer = swap_chain.framebuffers[image_index];
-
-    //Cover the whole swap chain image
-    render_pass_info.renderArea.offset = { 0,0 };
-    render_pass_info.renderArea.extent = swap_chain.extent;
-
-    //Clear to black (we use VK_ATTACHMENT_LOAD_OP_CLEAR)
-    //Clear order should be same as attachment order
-    std::array<VkClearValue, 2> clear_colors{};
-    clear_colors[0].color = { { 0.0f, 0.0f, 0.0f, 1.0f } }; //Clear image to black
-    clear_colors[1].depthStencil = { 1.0f, 0 }; //Clear depth image to 1.0 (far plane)
-    render_pass_info.clearValueCount = static_cast<uint32_t>(clear_colors.size());
-    render_pass_info.pClearValues = clear_colors.data();
 
     //VK_SUBPASS_CONTENTS_INLINE means we don't use secondary command buffers
-    vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
-    //Bind to graphics pipeline: The shaders and configuration used to the render the object
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
 
-    //We set viewport and scissor to dynamic earlier, so we define them now
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(swap_chain.extent.width);
-    viewport.height = static_cast<float>(swap_chain.extent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
+
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = { 0,0 };
-    scissor.extent = swap_chain.extent;
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
     //Render the object
@@ -1027,8 +1028,26 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     //Set the uniform buffers
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
 
+    //Bind to graphics pipeline: The shaders and configuration used to the render the object
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+
     //Draw command, set vertex and instance counts (we're not using instancing) and indices
     vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.indices.size()), 1, 0, 0, 0);
+
+    ////Instanced Konatas
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+    //Binding point 0 - mesh vertex buffer
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
+    //Binding point 1 - instance data buffer
+    vkCmdBindVertexBuffers(command_buffer, 1, 1, &instance_buffer.buffer, offsets.data());
+    //Bind index buffer
+    vkCmdBindIndexBuffer(command_buffer, index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+    //Render instances
+    int instance_count = 10;
+    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.get_indices_size()), instance_count, 0, 0, 0);
+    ////
 
     vkCmdEndRenderPass(command_buffer);
 
