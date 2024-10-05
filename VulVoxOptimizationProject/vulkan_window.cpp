@@ -693,7 +693,7 @@ void Vulkan_Window::create_descriptor_pool()
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
     pool_info.pPoolSizes = pool_sizes.data();
-    pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2; // Two for each descriptor set in Descriptor_Sets
     pool_info.flags = 0;
 
     if (vkCreateDescriptorPool(vulkan_instance.device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
@@ -710,10 +710,11 @@ void Vulkan_Window::create_descriptor_sets()
     allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocate_info.descriptorPool = descriptor_pool;
     allocate_info.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    allocate_info.pSetLayouts = layouts.data();
+    allocate_info.pSetLayouts = layouts.data(); //Uniform layout
 
-    descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, descriptor_sets.data()) != VK_SUCCESS)
+    ///Triangle descriptor sets
+    descriptor_sets.tri_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
+    if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, descriptor_sets.tri_descriptor_set.data()) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to allocate descriptor sets!");
     }
@@ -731,10 +732,12 @@ void Vulkan_Window::create_descriptor_sets()
         image_info.imageView = texture_image.image_view;
         image_info.sampler = texture_image.sampler;
 
+        //Tri shaders
         std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
 
+        //Descriptor for the MVP uniform
         descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[0].dstSet = descriptor_sets[i]; //Binding to update
+        descriptor_writes[0].dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
         descriptor_writes[0].dstBinding = 0; //Binding index equal to shader binding index
         descriptor_writes[0].dstArrayElement = 0; //Index of array data to update, no array so zero
         descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -743,8 +746,9 @@ void Vulkan_Window::create_descriptor_sets()
         descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
         descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
 
+        //Descriptor for the image sampler uniform
         descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_writes[1].dstSet = descriptor_sets[i]; //Binding to update
+        descriptor_writes[1].dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
         descriptor_writes[1].dstBinding = 1; //Binding index equal to shader binding index
         descriptor_writes[1].dstArrayElement = 0; //Index of array data to update, no array so zero
         descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -755,6 +759,54 @@ void Vulkan_Window::create_descriptor_sets()
         //Only write descriptor, no copy, so copy variable is 0
         vkUpdateDescriptorSets(vulkan_instance.device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
     }
+
+    ///Instance descriptor sets
+    descriptor_sets.instance_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
+
+    if (VkResult result = vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, descriptor_sets.instance_descriptor_set.data()); result != VK_SUCCESS)
+    {
+        std::string error_string{ string_VkResult(result) };
+        throw std::runtime_error("Failed to allocate descriptor sets! " + error_string);
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        VkDescriptorBufferInfo buffer_info{};
+        buffer_info.buffer = uniform_buffers[i].buffer;
+        buffer_info.offset = 0;
+        buffer_info.range = sizeof(MVP);
+
+        VkDescriptorImageInfo image_info{};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        image_info.imageView = instance_konata.texture.image_view;
+        image_info.sampler = instance_konata.texture.sampler;
+
+        std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
+
+        //Descriptor for the MVP uniform
+        descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[0].dstSet = descriptor_sets.instance_descriptor_set[i]; //Binding to update
+        descriptor_writes[0].dstBinding = 0; //Binding index equal to shader binding index
+        descriptor_writes[0].dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptor_writes[0].descriptorCount = 1; //A single buffer info struct
+        descriptor_writes[0].pBufferInfo = &buffer_info; //Data and layout of buffer
+        descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
+        descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
+
+        //Descriptor for the image sampler uniform
+        descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_writes[1].dstSet = descriptor_sets.instance_descriptor_set[i]; //Binding to update
+        descriptor_writes[1].dstBinding = 1; //Binding index equal to shader binding index
+        descriptor_writes[1].dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_writes[1].descriptorCount = 1; //A single buffer info struct
+        descriptor_writes[1].pImageInfo = &image_info; //This is an image sampler so we provide an image data description
+
+        //Apply updates
+        vkUpdateDescriptorSets(vulkan_instance.device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+    }
+
 }
 
 void Vulkan_Window::create_command_buffer()
@@ -1026,7 +1078,7 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     vkCmdBindIndexBuffer(command_buffer, index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     //Set the uniform buffers
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
 
     //Bind to graphics pipeline: The shaders and configuration used to the render the object
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
@@ -1035,18 +1087,18 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.indices.size()), 1, 0, 0, 0);
 
     ////Instanced Konatas
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets[current_frame], 0, nullptr);
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
     //Binding point 0 - mesh vertex buffer
-    vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
+    vkCmdBindVertexBuffers(command_buffer, 0, 1, &instance_vertex_buffer.buffer, offsets.data());
     //Binding point 1 - instance data buffer
-    vkCmdBindVertexBuffers(command_buffer, 1, 1, &instance_buffer.buffer, offsets.data());
+    vkCmdBindVertexBuffers(command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
     //Bind index buffer
-    vkCmdBindIndexBuffer(command_buffer, index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(command_buffer, instance_index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
     //Render instances
     int instance_count = 10;
-    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.get_indices_size()), instance_count, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(instance_konata.model.get_indices_size()), instance_count, 0, 0, 0);
     ////
 
     vkCmdEndRenderPass(command_buffer);

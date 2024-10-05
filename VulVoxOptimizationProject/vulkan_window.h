@@ -46,7 +46,6 @@ private:
     void cleanup_swap_chain();
 
     void create_render_pass();
-    void create_descriptor_set_layout(); //Describes uniform buffers and image samplers
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
@@ -59,6 +58,7 @@ private:
     void create_uniform_buffers();
 
     void create_descriptor_pool();
+    void create_descriptor_set_layout(); //Describes uniform buffers and image samplers
     void create_descriptor_sets();
 
     void create_command_buffer();
@@ -117,7 +117,7 @@ private:
     Buffer vertex_buffer;
     Buffer index_buffer;
 
-    Buffer instance_buffer;
+
 
     //Uniform buffers, data available across shaders
     std::vector<Buffer> uniform_buffers;
@@ -126,17 +126,33 @@ private:
     //Descriptor pool and sets, 
     //holds the binding information that connects the shader inputs to the data
     VkDescriptorPool descriptor_pool;
-    std::vector<VkDescriptorSet> descriptor_sets;
 
-    //Image containing the model texture
+    struct Descriptor_Sets
+    {
+        std::vector<VkDescriptorSet> tri_descriptor_set;
+        std::vector<VkDescriptorSet> instance_descriptor_set;
+    };
+
+    Descriptor_Sets descriptor_sets;
+
+    //Texture and mesh for Konata model
     Image texture_image;
+    Model konata_model;
 
 
     //Image used for depth testing
     Image depth_image;
 
-    Model konata_model;
+    struct Instanced_Model
+    {
+        Image texture;
+        Model model;
+    };
 
+    Instanced_Model instance_konata;
+    Buffer instance_vertex_buffer;
+    Buffer instance_index_buffer;
+    Buffer instance_data_buffer;
 
 
     //We don't want to wait for the previous frame to finish while processing the next frame,
