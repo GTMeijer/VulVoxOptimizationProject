@@ -967,9 +967,6 @@ void Vulkan_Window::create_texture_sampler()
     }
 }
 
-
-
-
 void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
     VkCommandBuffer command_buffer = begin_single_time_commands();

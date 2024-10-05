@@ -60,8 +60,8 @@ public:
     VkDevice device = VK_NULL_HANDLE; //Logical GPU context
 
     //Queues that send commands to the command buffers
-    VkQueue graphics_queue;
-    VkQueue present_queue;
+    VkQueue graphics_queue = VK_NULL_HANDLE;
+    VkQueue present_queue = VK_NULL_HANDLE;
 
 private:
 

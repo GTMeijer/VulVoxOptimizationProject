@@ -92,6 +92,8 @@ private:
     //Vulkan and device contexts
     Vulkan_Instance vulkan_instance;
 
+
+    VkSurfaceKHR surface;
     Vulkan_Swap_Chain swap_chain;
 
     //Command pool and the allocated command buffers that store the commands send to the GPU
@@ -103,8 +105,6 @@ private:
     std::vector<VkSemaphore> render_finished_semaphores;
     std::vector<VkFence> in_flight_fences; //Fence for draw finish
 
-    VkSurfaceKHR surface;
-
     VkRenderPass render_pass; //Stores information about the render images
 
     VkDescriptorSetLayout descriptor_set_layout;
@@ -112,7 +112,7 @@ private:
     VkPipeline graphics_pipeline; //GPU draw state (shaders, rasterization options, depth settings, etc.)
 
 
-    //Stuff that gets send to the shaders
+    ///Stuff that gets send to the shaders
     //Vertex and index buffers holding the mesh data
     Buffer vertex_buffer;
     Buffer index_buffer;
@@ -130,16 +130,17 @@ private:
     Image texture_image;
     VkSampler texture_sampler;
 
-
     //Image used for depth testing
     Image depth_image;
+    
+    Model konata_model;
 
+
+    
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing
     static const int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t current_frame = 0;
-
-    Model konata_model;
 
     //const std::vector<Vertex> vertices =
     //{
