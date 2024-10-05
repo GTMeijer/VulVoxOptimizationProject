@@ -192,8 +192,6 @@ void Vulkan_Window::cleanup()
     vkDestroyDescriptorPool(vulkan_instance.device, descriptor_pool, nullptr);
 
     //Texture cleanup
-    vkDestroySampler(vulkan_instance.device, texture_sampler, nullptr);
-
     texture_image.destroy();
 
     //Cleanup descriptor set layout and buffers
@@ -731,7 +729,7 @@ void Vulkan_Window::create_descriptor_sets()
         VkDescriptorImageInfo image_info{};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         image_info.imageView = texture_image.image_view;
-        image_info.sampler = texture_sampler;
+        image_info.sampler = texture_image.sampler;
 
         std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
 
@@ -928,43 +926,7 @@ void Vulkan_Window::create_texture_image_view()
 
 void Vulkan_Window::create_texture_sampler()
 {
-    VkSamplerCreateInfo sampler_info{};
-    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-
-    //Magnification and minification interpolation.
-    //Nearest is pixelated, linear is smooth
-    sampler_info.magFilter = VK_FILTER_LINEAR;
-    sampler_info.minFilter = VK_FILTER_LINEAR;
-
-    //How to handle when the surface is larger than the texture
-    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-    VkPhysicalDeviceProperties properties = vulkan_instance.get_physical_device_properties();
-
-    sampler_info.anisotropyEnable = VK_TRUE;
-    sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-
-    //What color to use when ADDRESS MODE is set to border clamp
-    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-
-    //Use 0..1 if false or 0..TexWidth/0..TexHeight if true for texture coordinates
-    sampler_info.unnormalizedCoordinates = VK_FALSE;
-
-    sampler_info.compareEnable = VK_FALSE;
-    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-
-    //No mip mapping at the moment, for later?
-    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    sampler_info.mipLodBias = 0.0f;
-    sampler_info.minLod = 0.0f;
-    sampler_info.maxLod = 0.0f;
-
-    if (vkCreateSampler(vulkan_instance.device, &sampler_info, nullptr, &texture_sampler) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create texture sampler!");
-    }
+    texture_image.create_texture_sampler();
 }
 
 void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)

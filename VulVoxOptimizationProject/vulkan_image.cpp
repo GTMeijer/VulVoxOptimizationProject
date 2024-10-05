@@ -71,6 +71,47 @@ void Image::create_image_view()
     }
 }
 
+void Image::create_texture_sampler()
+{
+    VkSamplerCreateInfo sampler_info{};
+    sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+
+    //Magnification and minification interpolation.
+    //Nearest is pixelated, linear is smooth
+    sampler_info.magFilter = VK_FILTER_LINEAR;
+    sampler_info.minFilter = VK_FILTER_LINEAR;
+
+    //How to handle when the surface is larger than the texture
+    sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    VkPhysicalDeviceProperties properties = vulkan_instance->get_physical_device_properties();
+
+    sampler_info.anisotropyEnable = VK_TRUE;
+    sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+
+    //What color to use when ADDRESS MODE is set to border clamp
+    sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    //Use 0..1 if false or 0..TexWidth/0..TexHeight if true for texture coordinates
+    sampler_info.unnormalizedCoordinates = VK_FALSE;
+
+    sampler_info.compareEnable = VK_FALSE;
+    sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+
+    //No mip mapping at the moment, for later?
+    sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_info.mipLodBias = 0.0f;
+    sampler_info.minLod = 0.0f;
+    sampler_info.maxLod = 0.0f;
+
+    if (vkCreateSampler(vulkan_instance->device, &sampler_info, nullptr, &sampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create texture sampler!");
+    }
+}
+
 void Image::transition_image_layout(VkCommandBuffer command_buffer, VkImageLayout new_layout)
 {
     //Create barrier to prevent reading before write is done
@@ -131,6 +172,8 @@ void Image::transition_image_layout(VkCommandBuffer command_buffer, VkImageLayou
 //TODO: Probably needs a factory function for the eventual API
 void Image::destroy()
 {
+    vkDestroySampler(vulkan_instance->device, sampler, nullptr);
+
     vkDestroyImageView(vulkan_instance->device, image_view, nullptr);
 
     vkDestroyImage(vulkan_instance->device, image, nullptr);

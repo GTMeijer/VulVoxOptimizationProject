@@ -128,7 +128,7 @@ private:
 
     //Image containing the model texture
     Image texture_image;
-    VkSampler texture_sampler;
+    
 
     //Image used for depth testing
     Image depth_image;
