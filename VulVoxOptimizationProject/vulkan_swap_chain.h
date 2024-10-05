@@ -4,9 +4,7 @@ class Vulkan_Swap_Chain
 {
 public:
 
-    Vulkan_Swap_Chain(Vulkan_Instance* vulkan_instance);
-
-    void init_swap_chain();
+    explicit Vulkan_Swap_Chain(Vulkan_Instance* vulkan_instance);
 
     void create_swap_chain(GLFWwindow* window, VkSurfaceKHR surface);
 
@@ -18,9 +16,9 @@ public:
     void cleanup_swap_chain();
 
     //Swapchain context and information
-    VkSwapchainKHR swap_chain;
-    VkFormat image_format;
-    VkExtent2D extent;
+    VkSwapchainKHR swap_chain = VK_NULL_HANDLE;
+    VkFormat image_format = VK_FORMAT_UNDEFINED;
+    VkExtent2D extent = { 0,0 };
 
     //Buffers that hold the target images for renderpass
     std::vector<VkFramebuffer> framebuffers;
@@ -31,6 +29,7 @@ private:
     //Couple this swap chain to a specific vulkan instance (The swap chain will be destroyed before the instance)
     Vulkan_Instance* vulkan_instance;
 
+
     //Swap chain creation helper functions
     VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const;
     VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const;
@@ -39,4 +38,6 @@ private:
     void create_image_views();
 
     std::vector<VkImage> swap_chain_images;
+
+
 };
