@@ -345,66 +345,68 @@ void Vulkan_Window::create_descriptor_set_layout()
 
 void Vulkan_Window::create_graphics_pipeline()
 {
-    //Load shader files and compile to SPIR-V code
+
+    //Define global variables (like a MVP matrix)
+    //These are defined in a seperate pipeline layout
+    VkPipelineLayoutCreateInfo pipeline_layout_info{};
+    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeline_layout_info.setLayoutCount = 1; //Amount of descriptor set layout (uniform buffer layout)
+    pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
+    pipeline_layout_info.pushConstantRangeCount = 0; //Optional small uniform data
+    pipeline_layout_info.pPushConstantRanges = nullptr;
+
+    if (vkCreatePipelineLayout(vulkan_instance.device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create pipeline layout!");
+    }
+
+    //Load compiled SPIR-V shader files 
     std::filesystem::path vert_shader_filepath("shaders/vert.spv");
     std::filesystem::path frag_shader_filepath("shaders/frag.spv");
 
-    auto vert_shader_code = read_file(vert_shader_filepath);
-    std::cout << "Vertex shader file read, size is " << vert_shader_code.size() << " bytes" << std::endl;
+    std::filesystem::path instance_vert_shader_filepath("shaders/instance_vert.spv");
+    std::filesystem::path instance_frag_shader_filepath("shaders/instance_frag.spv");
 
-    if (std::filesystem::file_size(vert_shader_filepath) != vert_shader_code.size())
-    {
-        throw std::runtime_error("Failed to load vertex shader, size missmatch!");
-    }
-
-    auto frag_shader_code = read_file(frag_shader_filepath);
-    std::cout << "Fragment shader file read, size is " << frag_shader_code.size() << " bytes" << std::endl;
-
-    if (std::filesystem::file_size(frag_shader_filepath) != frag_shader_code.size())
-    {
-        throw std::runtime_error("Failed to load fragment shader, size missmatch!");
-    }
-
-    std::cout << std::endl;
-
-    //Wrap the shader byte code in the shader modules for use in the pipeline
-    VkShaderModule vert_shader_module = create_shader_module(vert_shader_code);
-    VkShaderModule frag_shader_module = create_shader_module(frag_shader_code);
+    Vulkan_Shader vert_shader{ vulkan_instance.device, vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
+    Vulkan_Shader frag_shader{ vulkan_instance.device, frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
+    Vulkan_Shader instance_vert_shader{ vulkan_instance.device, instance_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
+    Vulkan_Shader instance_frag_shader{ vulkan_instance.device, instance_frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
 
     VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
     vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vert_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vert_shader_stage_info.module = vert_shader_module;
+    vert_shader_stage_info.stage = vert_shader.shader_stage_bit;
+    vert_shader_stage_info.module = vert_shader.shader_module;
     vert_shader_stage_info.pName = "main";
     vert_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
 
     VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
     frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    frag_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    frag_shader_stage_info.module = frag_shader_module;
+    frag_shader_stage_info.stage = frag_shader.shader_stage_bit;
+    frag_shader_stage_info.module = frag_shader.shader_module;
     frag_shader_stage_info.pName = "main";
     frag_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
 
-    //Some parts of the pipeline can be dynamic, we define these parts here
-    std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages_info = { vert_shader_stage_info, frag_shader_stage_info };
+    VkPipelineShaderStageCreateInfo instance_vert_shader_stage_info{};
+    instance_vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    instance_vert_shader_stage_info.stage = instance_vert_shader.shader_stage_bit;
+    instance_vert_shader_stage_info.module = instance_vert_shader.shader_module;
+    instance_vert_shader_stage_info.pName = "main";
+    instance_vert_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
 
-    //Describe the format of the vertex data
-    auto binding_description = Vertex::get_binding_description();
-    auto attribute_descriptions = Vertex::get_attribute_descriptions();
-
-
-    VkPipelineVertexInputStateCreateInfo vertex_input_info{};
-    vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = 1;
-    vertex_input_info.pVertexBindingDescriptions = &binding_description; //Optional, spacing between data and per vertex or per instance
-    vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
-    vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data(); //Optional, attribute type, which bindings to load, and offset
+    VkPipelineShaderStageCreateInfo instance_frag_shader_stage_info{};
+    instance_frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    instance_frag_shader_stage_info.stage = instance_frag_shader.shader_stage_bit;
+    instance_frag_shader_stage_info.module = instance_frag_shader.shader_module;
+    instance_frag_shader_stage_info.pName = "main";
+    instance_frag_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
 
     //Describes the configuration of the vertices the triangles and lines use
+    //v
     VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
     input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; //Triangle from every three vertices, without reuse
     input_assembly_info.primitiveRestartEnable = VK_FALSE; //Break up lines and triangles in strip mode
+    input_assembly_info.flags = 0;
 
     //Viewport size
     VkViewport viewport{};
@@ -427,17 +429,21 @@ void Vulkan_Window::create_graphics_pipeline()
         VK_DYNAMIC_STATE_SCISSOR
     };
 
+    //v
     VkPipelineDynamicStateCreateInfo dynamic_state_info{};
     dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
     dynamic_state_info.pDynamicStates = dynamic_states.data();
 
+    //v
     VkPipelineViewportStateCreateInfo viewport_state_info{};
     viewport_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport_state_info.viewportCount = 1;
     viewport_state_info.scissorCount = 1;
+    viewport_state_info.flags = 0;
 
     //Setup rasterizer stage
+    //v
     VkPipelineRasterizationStateCreateInfo rasterizer_info{};
     rasterizer_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer_info.depthClampEnable = VK_FALSE; //Discard fragments outside of near/far plane (instead of clamping)
@@ -450,8 +456,10 @@ void Vulkan_Window::create_graphics_pipeline()
     rasterizer_info.depthBiasConstantFactor = 0.0f;
     rasterizer_info.depthBiasClamp = 0.0f;
     rasterizer_info.depthBiasSlopeFactor = 0.0f;
+    rasterizer_info.flags = 0;
 
     //Multisample / anti-aliasing stage (disabled)
+    //v
     VkPipelineMultisampleStateCreateInfo multisampling_info{};
     multisampling_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling_info.sampleShadingEnable = VK_FALSE;
@@ -460,13 +468,16 @@ void Vulkan_Window::create_graphics_pipeline()
     multisampling_info.pSampleMask = nullptr; // Optional
     multisampling_info.alphaToCoverageEnable = VK_FALSE; // Optional
     multisampling_info.alphaToOneEnable = VK_FALSE; // Optional
+    multisampling_info.flags = 0;
 
     //Enable depth testing
+    //v
     VkPipelineDepthStencilStateCreateInfo depth_stencil{};
     depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depth_stencil.depthTestEnable = VK_TRUE; //Discard fragment is they fail depth test
     depth_stencil.depthWriteEnable = VK_TRUE; //Write passed depth tests to the depth buffer
-    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS; //Write closer results to the depth buffer
+    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //Write closer results to the depth buffer
+    depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS; //Back face culling
     depth_stencil.depthBoundsTestEnable = VK_FALSE;
     depth_stencil.minDepthBounds = 0.0f; // Optional
     depth_stencil.maxDepthBounds = 1.0f; // Optional
@@ -475,6 +486,7 @@ void Vulkan_Window::create_graphics_pipeline()
     depth_stencil.back = {}; // Optional
 
     //Handle color blending of the fragments (for example alpha blending) (disabled)
+    //v
     VkPipelineColorBlendAttachmentState color_blend_attachement_info{};
     color_blend_attachement_info.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     color_blend_attachement_info.blendEnable = VK_FALSE; //Disabled
@@ -496,18 +508,50 @@ void Vulkan_Window::create_graphics_pipeline()
     color_blending_info.blendConstants[2] = 0.0f; //Optional
     color_blending_info.blendConstants[3] = 0.0f; //Optional
 
-    //Define global variables (like a transformation matrix) (none for now)
-    VkPipelineLayoutCreateInfo pipeline_layout_info{};
-    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = 1; //Amount of uniform buffers
-    pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
-    pipeline_layout_info.pushConstantRangeCount = 0; //Optional small uniform data
-    pipeline_layout_info.pPushConstantRanges = nullptr;
 
-    if (vkCreatePipelineLayout(vulkan_instance.device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
+    //Some parts of the pipeline can be dynamic, we define these parts here
+    //std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages_info = { vert_shader_stage_info, frag_shader_stage_info };
+    std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages_info;
+
+    //Describe the format of the vertex and instance data
+    std::vector<VkVertexInputBindingDescription> binding_descriptions =
     {
-        throw std::runtime_error("Failed to create pipeline layout!");
+        //Binding point 0: Mesh vertex layout description at per-vertex rate
+        Vertex::get_binding_description(0),
+        //Binding point 1: Instanced data at per-instance rate
+        Instance_Data::get_binding_description(1)
+    };
+
+    //Vertex attribute bindings
+    //Note that the shader declaration for per-vertex and per-instance attributes is the same, the different input rates are only stored in the bindings:
+        //	layout (location = 0) in vec3 in_position;		Per-Vertex
+        //	...
+        //	layout (location = 3) in vec3 instance_position;	Per-Instance
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
+
+    //Per-vertex attributes
+    //These are advanced for each vertex fetched by the vertex shader
+    for (auto& attribute_desc : Vertex::get_attribute_descriptions(0))
+    {
+        attribute_descriptions.push_back(attribute_desc);
     }
+
+    //Per-Instance attributes
+    //These are advanced for each instance rendered
+    for (auto& attribute_desc : Instance_Data::get_attribute_descriptions(1))
+    {
+        attribute_descriptions.push_back(attribute_desc);
+    }
+
+
+
+
+    VkPipelineVertexInputStateCreateInfo vertex_input_info{};
+    vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertex_input_info.vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size());
+    vertex_input_info.pVertexBindingDescriptions = binding_descriptions.data(); //Optional, spacing between data and per vertex or per instance
+    vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
+    vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data(); //Optional, attribute type, which bindings to load, and offset
 
     VkGraphicsPipelineCreateInfo pipeline_info{};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -539,10 +583,6 @@ void Vulkan_Window::create_graphics_pipeline()
     {
         throw std::runtime_error("Failed to create graphics pipeline!");
     }
-
-    vkDestroyShaderModule(vulkan_instance.device, frag_shader_module, nullptr);
-    vkDestroyShaderModule(vulkan_instance.device, vert_shader_module, nullptr);
-
 }
 
 /// <summary>

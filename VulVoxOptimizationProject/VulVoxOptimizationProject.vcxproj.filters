@@ -48,6 +48,9 @@
     <ClCompile Include="vulkan_swap_chain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="vulkan_shader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utils.h">
@@ -83,6 +86,9 @@
     <ClInclude Include="vulkan_swap_chain.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="vulkan_shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\triangle_shader.frag" />
@@ -90,5 +96,7 @@
     <None Include="shaders\compile_shaders.bat">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="shaders\instance_shader.frag" />
+    <None Include="shaders\instance_shader.vert" />
   </ItemGroup>
 </Project>
