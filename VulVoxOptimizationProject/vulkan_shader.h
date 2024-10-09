@@ -10,6 +10,8 @@ public:
     std::string main_function_name;
     VkShaderStageFlagBits shader_stage_bit = VK_SHADER_STAGE_ALL;
 
+    VkPipelineShaderStageCreateInfo get_shader_stage_create_info() const;
+
 private:
 
     VkDevice device = VK_NULL_HANDLE;

@@ -28,6 +28,17 @@ Vulkan_Shader::~Vulkan_Shader()
     }
 }
 
+VkPipelineShaderStageCreateInfo Vulkan_Shader::get_shader_stage_create_info() const
+{
+    VkPipelineShaderStageCreateInfo shader_stage_info{};
+    shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shader_stage_info.stage = shader_stage_bit;
+    shader_stage_info.module = shader_module;
+    shader_stage_info.pName = main_function_name.c_str();
+    shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
+    return shader_stage_info;
+}
+
 VkShaderModule Vulkan_Shader::create_shader_module(VkDevice device, const std::vector<char>& bytecode)
 {
     VkShaderModuleCreateInfo create_info{};

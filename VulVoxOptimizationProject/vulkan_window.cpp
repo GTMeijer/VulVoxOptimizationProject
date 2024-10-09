@@ -372,34 +372,6 @@ void Vulkan_Window::create_graphics_pipeline()
     Vulkan_Shader instance_vert_shader{ vulkan_instance.device, instance_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
     Vulkan_Shader instance_frag_shader{ vulkan_instance.device, instance_frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
 
-    VkPipelineShaderStageCreateInfo vert_shader_stage_info{};
-    vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vert_shader_stage_info.stage = vert_shader.shader_stage_bit;
-    vert_shader_stage_info.module = vert_shader.shader_module;
-    vert_shader_stage_info.pName = "main";
-    vert_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
-
-    VkPipelineShaderStageCreateInfo frag_shader_stage_info{};
-    frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    frag_shader_stage_info.stage = frag_shader.shader_stage_bit;
-    frag_shader_stage_info.module = frag_shader.shader_module;
-    frag_shader_stage_info.pName = "main";
-    frag_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
-
-    VkPipelineShaderStageCreateInfo instance_vert_shader_stage_info{};
-    instance_vert_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    instance_vert_shader_stage_info.stage = instance_vert_shader.shader_stage_bit;
-    instance_vert_shader_stage_info.module = instance_vert_shader.shader_module;
-    instance_vert_shader_stage_info.pName = "main";
-    instance_vert_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
-
-    VkPipelineShaderStageCreateInfo instance_frag_shader_stage_info{};
-    instance_frag_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    instance_frag_shader_stage_info.stage = instance_frag_shader.shader_stage_bit;
-    instance_frag_shader_stage_info.module = instance_frag_shader.shader_module;
-    instance_frag_shader_stage_info.pName = "main";
-    instance_frag_shader_stage_info.pSpecializationInfo = nullptr; //Use this for control flow flags
-
     //Describes the configuration of the vertices the triangles and lines use
     //v
     VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
@@ -543,23 +515,16 @@ void Vulkan_Window::create_graphics_pipeline()
         attribute_descriptions.push_back(attribute_desc);
     }
 
+    VkPipelineVertexInputStateCreateInfo vertex_input_state_info{};
+    vertex_input_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
+    vertex_input_state_info.pVertexBindingDescriptions = binding_descriptions.data(); //spacing between data and per vertex or per instance
+    vertex_input_state_info.pVertexAttributeDescriptions = attribute_descriptions.data(); //attribute type, which bindings to load, and offset
 
-
-    VkPipelineVertexInputStateCreateInfo vertex_input_info{};
-    vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertex_input_info.vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size());
-    vertex_input_info.pVertexBindingDescriptions = binding_descriptions.data(); //Optional, spacing between data and per vertex or per instance
-    vertex_input_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
-    vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data(); //Optional, attribute type, which bindings to load, and offset
-
+    //Combine the pipeline stages, we change the input and shader stages for the instance and vertex pipelines
     VkGraphicsPipelineCreateInfo pipeline_info{};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeline_info.stageCount = 2; //Vert & Frag shader stages
-    pipeline_info.pStages = shader_stages_info.data();
-
-    //Shader stages
-    pipeline_info.pVertexInputState = &vertex_input_info;
+    pipeline_info.pVertexInputState = &vertex_input_state_info; //Differ for the instance and vertex rendering
     pipeline_info.pInputAssemblyState = &input_assembly_info;
     pipeline_info.pViewportState = &viewport_state_info;
     pipeline_info.pRasterizationState = &rasterizer_info;
@@ -568,18 +533,48 @@ void Vulkan_Window::create_graphics_pipeline()
     pipeline_info.pColorBlendState = &color_blending_info;
     pipeline_info.pDynamicState = &dynamic_state_info;
 
-    //Fixed function stage
-    pipeline_info.layout = pipeline_layout;
+    pipeline_info.stageCount = 2; //Vert & Frag shader stages
+    pipeline_info.pStages = shader_stages_info.data(); //Differ for the instance and vertex rendering
 
+    pipeline_info.layout = pipeline_layout;
     pipeline_info.renderPass = render_pass;
     pipeline_info.subpass = 0;
-
     //This pipeline doesn't derive from another 
     //(set VK_PIPELINE_CREATE_DERIVATIVE_BIT, if we want to derive from another)    
     pipeline_info.basePipelineHandle = nullptr;
     pipeline_info.basePipelineIndex = -1;
 
-    if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphics_pipeline) != VK_SUCCESS)
+    ///Per instance pipeline
+    VkPipelineShaderStageCreateInfo instance_vert_shader_stage_info = instance_vert_shader.get_shader_stage_create_info();
+    VkPipelineShaderStageCreateInfo instance_frag_shader_stage_info = instance_frag_shader.get_shader_stage_create_info();
+
+    //Use instance vert and frag shaders
+    shader_stages_info[0] = instance_vert_shader_stage_info;
+    shader_stages_info[1] = instance_frag_shader_stage_info;
+
+    //The instance pipeline uses all the input bindings and attribute descriptions
+    vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size());
+    vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
+
+    if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_pipeline) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create graphics pipeline!");
+    }
+
+    ///Per vertex pipeline
+    VkPipelineShaderStageCreateInfo vert_shader_stage_info = vert_shader.get_shader_stage_create_info();
+    VkPipelineShaderStageCreateInfo frag_shader_stage_info = frag_shader.get_shader_stage_create_info();
+
+    //Use vertex vert and frag shaders
+    shader_stages_info[0] = vert_shader_stage_info;
+    shader_stages_info[1] = frag_shader_stage_info;
+
+    //The vertex pipeline only uses the non-instanced input bindings and attribute descriptions
+    //(we pass the same list but only look at the vertex specific ones)
+    vertex_input_state_info.vertexBindingDescriptionCount = 1;
+    vertex_input_state_info.vertexAttributeDescriptionCount = 3;
+
+    if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &vertex_pipeline) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create graphics pipeline!");
     }

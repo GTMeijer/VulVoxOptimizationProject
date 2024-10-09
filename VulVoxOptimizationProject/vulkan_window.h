@@ -109,8 +109,10 @@ private:
 
     VkDescriptorSetLayout descriptor_set_layout;
     VkPipelineLayout pipeline_layout;
-    VkPipeline graphics_pipeline; //GPU draw state (shaders, rasterization options, depth settings, etc.)
 
+    //GPU draw state (stages, shaders, rasterization options, depth settings, etc.)
+    VkPipeline instance_pipeline;
+    VkPipeline vertex_pipeline;
 
     ///Stuff that gets send to the shaders
     //Vertex and index buffers holding the mesh data
