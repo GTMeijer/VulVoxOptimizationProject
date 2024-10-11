@@ -55,6 +55,7 @@ private:
 
     void create_vertex_buffer();
     void create_index_buffer();
+    void create_instance_buffers();
     void create_uniform_buffers();
 
     void create_descriptor_pool();
@@ -92,7 +93,6 @@ private:
     //Vulkan and device contexts
     Vulkan_Instance vulkan_instance;
 
-
     VkSurfaceKHR surface;
     Vulkan_Swap_Chain swap_chain;
 
@@ -108,17 +108,13 @@ private:
     VkRenderPass render_pass; //Stores information about the render images
 
     VkDescriptorSetLayout descriptor_set_layout;
-    VkPipelineLayout pipeline_layout;
+    VkPipelineLayout pipeline_layout; //Describes the layout of the 'global' data, e.g. uniform buffers
 
     //GPU draw state (stages, shaders, rasterization options, depth settings, etc.)
     VkPipeline instance_pipeline;
     VkPipeline vertex_pipeline;
 
     ///Stuff that gets send to the shaders
-    //Vertex and index buffers holding the mesh data
-    Buffer vertex_buffer;
-    Buffer index_buffer;
-
 
 
     //Uniform buffers, data available across shaders
@@ -137,13 +133,16 @@ private:
 
     Descriptor_Sets descriptor_sets;
 
+    //Image used for depth testing
+    Image depth_image;
+
     //Texture and mesh for Konata model
     Image texture_image;
     Model konata_model;
 
-
-    //Image used for depth testing
-    Image depth_image;
+    //Vertex and index buffers holding the mesh data
+    Buffer vertex_buffer;
+    Buffer index_buffer;
 
     struct Instanced_Model
     {
@@ -152,35 +151,17 @@ private:
     };
 
     Instanced_Model instance_konata;
+
+    std::vector<Instance_Data> konata_instances_data;
+
     Buffer instance_vertex_buffer;
     Buffer instance_index_buffer;
     Buffer instance_data_buffer;
-
 
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing
     static const int MAX_FRAMES_IN_FLIGHT = 2;
     uint32_t current_frame = 0;
-
-    //const std::vector<Vertex> vertices =
-    //{
-    //    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    //    {{ 0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    //    {{ 0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-    //    {{-0.5f,  0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-
-    //    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-    //    {{ 0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-    //    {{ 0.5f,  0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-    //    {{-0.5f,  0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-    //};
-
-    ////16bit for now, >65535 needs 32
-    //const std::vector<uint16_t> indices =
-    //{
-    //    0, 1, 2, 2, 3, 0,
-    //    4, 5, 6, 6, 7, 4
-    //};
 };
 
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)

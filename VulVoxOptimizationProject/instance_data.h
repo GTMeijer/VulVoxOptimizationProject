@@ -29,7 +29,7 @@ struct Instance_Data
     static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions(uint32_t binding)
     {
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
-        attribute_descriptions.resize(3);
+        attribute_descriptions.resize(4);
 
         attribute_descriptions[0].binding = binding; //Source array binding index
         attribute_descriptions[0].location = 3; //Location index in shader
@@ -46,10 +46,10 @@ struct Instance_Data
         attribute_descriptions[2].format = VK_FORMAT_R32_SFLOAT;
         attribute_descriptions[2].offset = offsetof(Instance_Data, scale); //size in bytes of scale in class Instance_Data
 
-        attribute_descriptions[2].binding = binding; //Source array binding index
-        attribute_descriptions[2].location = 6; //Location index in shader
-        attribute_descriptions[2].format = VK_FORMAT_R32_SINT;
-        attribute_descriptions[2].offset = offsetof(Instance_Data, texture_index); //size in bytes of texture_index in class Instance_Data
+        attribute_descriptions[3].binding = binding; //Source array binding index
+        attribute_descriptions[3].location = 6; //Location index in shader
+        attribute_descriptions[3].format = VK_FORMAT_R32_SINT;
+        attribute_descriptions[3].offset = offsetof(Instance_Data, texture_index); //size in bytes of texture_index in class Instance_Data
 
         return attribute_descriptions;
     }

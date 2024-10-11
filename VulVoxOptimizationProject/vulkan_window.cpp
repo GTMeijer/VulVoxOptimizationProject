@@ -164,9 +164,12 @@ void Vulkan_Window::init_vulkan()
 
     konata_model = Model(MODEL_PATH);
 
+    instance_konata.model = Model(MODEL_PATH);
+
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
+    create_instance_buffers();
     create_descriptor_pool();
     create_descriptor_sets();
     create_command_buffer();
@@ -179,7 +182,8 @@ void Vulkan_Window::cleanup()
 {
     cleanup_swap_chain();
 
-    vkDestroyPipeline(vulkan_instance.device, graphics_pipeline, nullptr);
+    vkDestroyPipeline(vulkan_instance.device, vertex_pipeline, nullptr);
+    vkDestroyPipeline(vulkan_instance.device, instance_pipeline, nullptr);
     vkDestroyPipelineLayout(vulkan_instance.device, pipeline_layout, nullptr);
     vkDestroyRenderPass(vulkan_instance.device, render_pass, nullptr);
 
@@ -698,6 +702,112 @@ void Vulkan_Window::create_index_buffer()
     staging_buffer.destroy(vulkan_instance.device);
 }
 
+void Vulkan_Window::create_instance_buffers()
+{
+    {
+        ///Instance vertex buffer
+        VkDeviceSize vertex_buffer_size = instance_konata.model.get_vertices_size();
+
+        //Create staging buffer that transfers data between the host and device
+        Buffer staging_buffer;
+        staging_buffer.create(vulkan_instance, vertex_buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        void* data;
+        vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, vertex_buffer_size, 0, &data);
+        memcpy(data, instance_konata.model.get_vertices_ptr(), (size_t)vertex_buffer_size);
+        vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+
+        //Create vertex buffer as device only buffer
+        instance_vertex_buffer.create(vulkan_instance, vertex_buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        //Copy data from host to device
+        copy_buffer(staging_buffer.buffer, instance_vertex_buffer.buffer, vertex_buffer_size);
+
+        //Data on device, cleanup temp buffers
+        staging_buffer.destroy(vulkan_instance.device);
+    }
+    {
+        ///Instance index buffer
+        VkDeviceSize index_buffer_size = instance_konata.model.get_indices_size();
+        Buffer staging_buffer;
+        staging_buffer.create(vulkan_instance, index_buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        void* data;
+        vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, index_buffer_size, 0, &data);
+        memcpy(data, instance_konata.model.get_indices_ptr(), (size_t)index_buffer_size);
+        vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+
+        //Create index buffer as device only buffer
+        instance_index_buffer.create(vulkan_instance, index_buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        //Copy data from host to device
+        copy_buffer(staging_buffer.buffer, instance_index_buffer.buffer, index_buffer_size);
+
+        //Data on device, cleanup temp buffers
+        staging_buffer.destroy(vulkan_instance.device);
+    }
+
+    {
+        ///Instance data buffer
+        const int instance_count = 10;
+        //konata_instances_data.resize(instance_count);
+
+        float pos_x = 0.0f;
+        float pos_y = 0.0f;
+
+        for (size_t i = 0; i < instance_count; i++)
+        {
+            Instance_Data instance_data;
+            instance_data.position = glm::vec3(pos_x, pos_y, 1.0f);
+            instance_data.rotation = glm::vec3(0, 0, 0);
+            instance_data.scale = 1.0f;
+            instance_data.texture_index = 0;
+
+            konata_instances_data.push_back(instance_data);
+
+            if (pos_x >= 30.f)
+            {
+                pos_x = 0.0f;
+                pos_y += 10.0f;
+            }
+            else
+            {
+                pos_x += 10.f;
+            }
+        }
+
+        VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * konata_instances_data.size();
+        Buffer staging_buffer;
+        staging_buffer.create(vulkan_instance, instance_data_buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        void* data;
+        vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, instance_data_buffer_size, 0, &data);
+        memcpy(data, instance_konata.model.get_indices_ptr(), (size_t)instance_data_buffer_size);
+        vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+
+        //Create vertex buffer as device only buffer
+        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        //Copy data from host to device
+        copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, instance_data_buffer_size);
+
+        //Data on device, cleanup temp buffers
+        staging_buffer.destroy(vulkan_instance.device);
+    }
+}
+
 void Vulkan_Window::create_uniform_buffers()
 {
     VkDeviceSize buffer_size = sizeof(MVP);
@@ -719,10 +829,10 @@ void Vulkan_Window::create_descriptor_pool()
     std::array<VkDescriptorPoolSize, 2> pool_sizes{};
 
     pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    pool_sizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
 
     pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    pool_sizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    pool_sizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2;
 
     VkDescriptorPoolCreateInfo pool_info{};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -813,8 +923,12 @@ void Vulkan_Window::create_descriptor_sets()
 
         VkDescriptorImageInfo image_info{};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        image_info.imageView = instance_konata.texture.image_view;
-        image_info.sampler = instance_konata.texture.sampler;
+        //image_info.imageView = instance_konata.texture.image_view;
+        //image_info.sampler = instance_konata.texture.sampler;
+
+        image_info.imageView = texture_image.image_view;
+        image_info.sampler = texture_image.sampler;
+
 
         std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
 
@@ -1098,7 +1212,6 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 
-
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
     vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
@@ -1116,14 +1229,14 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
 
     //Bind to graphics pipeline: The shaders and configuration used to the render the object
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);
 
     //Draw command, set vertex and instance counts (we're not using instancing) and indices
     vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.indices.size()), 1, 0, 0, 0);
 
     ////Instanced Konatas
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
-    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline);
+    vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
     //Binding point 0 - mesh vertex buffer
     vkCmdBindVertexBuffers(command_buffer, 0, 1, &instance_vertex_buffer.buffer, offsets.data());
     //Binding point 1 - instance data buffer
@@ -1133,7 +1246,7 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
 
     //Render instances
     int instance_count = 10;
-    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(instance_konata.model.get_indices_size()), instance_count, 0, 0, 0);
+    vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(instance_konata.model.indices.size()), instance_count, 0, 0, 0);
     ////
 
     vkCmdEndRenderPass(command_buffer);

@@ -21,10 +21,10 @@ Vulkan_Shader::~Vulkan_Shader()
 {
     if (device != VK_NULL_HANDLE)
     {
-        device = VK_NULL_HANDLE;
         vkDestroyShaderModule(device, shader_module, nullptr);
         main_function_name.clear();
         shader_stage_bit = VK_SHADER_STAGE_ALL;
+        device = VK_NULL_HANDLE;
     }
 }
 
@@ -47,7 +47,7 @@ VkShaderModule Vulkan_Shader::create_shader_module(VkDevice device, const std::v
     create_info.pCode = reinterpret_cast<const uint32_t*> (bytecode.data());
 
     VkShaderModule new_shader_module = VK_NULL_HANDLE;
-    if (vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+    if (vkCreateShaderModule(device, &create_info, nullptr, &new_shader_module) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create shader module!");
     }
