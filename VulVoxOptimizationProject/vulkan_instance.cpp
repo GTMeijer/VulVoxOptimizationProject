@@ -472,6 +472,25 @@ void Vulkan_Instance::init_device(const VkSurfaceKHR surface)
     create_logical_device(surface);
 }
 
+void Vulkan_Instance::init_allocator()
+{
+    VmaAllocatorCreateInfo allocator_create_info = {};
+    allocator_create_info.instance = instance;
+    allocator_create_info.physicalDevice = physical_device;
+    allocator_create_info.device = device;
+    allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_0;
+
+    if (vmaCreateAllocator(&allocator_create_info, &allocator) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create memory allocator!");
+    }
+}
+
+void Vulkan_Instance::cleanup_allocator()
+{
+    vmaDestroyAllocator(allocator);
+}
+
 void Vulkan_Instance::cleanup_instance()
 {
     vkDestroyInstance(instance, nullptr);

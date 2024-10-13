@@ -119,7 +119,8 @@ void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
 
     mvp.projection[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
 
-    memcpy(uniform_buffers_mapped[current_image], &mvp, sizeof(mvp));
+    //memcpy(uniform_buffers_mapped[current_image], &mvp, sizeof(mvp));
+    memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp, sizeof(mvp));
 }
 
 void Vulkan_Window::init_window()
@@ -149,6 +150,8 @@ void Vulkan_Window::init_vulkan()
     create_surface();
 
     vulkan_instance.init_device(surface);
+
+    vulkan_instance.init_allocator();
 
     swap_chain.create_swap_chain(window, surface);
 
@@ -189,7 +192,7 @@ void Vulkan_Window::cleanup()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        uniform_buffers[i].destroy(vulkan_instance.device);
+        uniform_buffers[i].destroy(vulkan_instance.allocator);
     }
 
     //Descriptor sets will be destroyed with the pool
@@ -201,8 +204,13 @@ void Vulkan_Window::cleanup()
     //Cleanup descriptor set layout and buffers
     vkDestroyDescriptorSetLayout(vulkan_instance.device, descriptor_set_layout, nullptr);
 
-    index_buffer.destroy(vulkan_instance.device);
-    vertex_buffer.destroy(vulkan_instance.device);
+    index_buffer.destroy(vulkan_instance.allocator);
+    vertex_buffer.destroy(vulkan_instance.allocator);
+
+    //Destroy instance buffers
+    instance_vertex_buffer.destroy(vulkan_instance.allocator);
+    instance_index_buffer.destroy(vulkan_instance.allocator);
+    instance_data_buffer.destroy(vulkan_instance.allocator);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -213,6 +221,8 @@ void Vulkan_Window::cleanup()
 
     //Also destroys the command buffers
     vkDestroyCommandPool(vulkan_instance.device, command_pool, nullptr);
+
+    vulkan_instance.cleanup_allocator();
 
     vulkan_instance.cleanup_device();
 
@@ -657,24 +667,18 @@ void Vulkan_Window::create_vertex_buffer()
     //Create staging buffer that transfers data between the host and device
     Buffer staging_buffer;
     staging_buffer.create(vulkan_instance, buffer_size,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    void* data;
-    vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, buffer_size, 0, &data);
-    memcpy(data, konata_model.get_vertices_ptr(), (size_t)buffer_size);
-    vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+    memcpy(staging_buffer.allocation_info.pMappedData, konata_model.get_vertices_ptr(), (size_t)buffer_size);
 
     //Create vertex buffer as device only buffer
-    vertex_buffer.create(vulkan_instance, buffer_size,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vertex_buffer.create(vulkan_instance, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
 
     //Copy data from host to device
     copy_buffer(staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
 
     //Data on device, cleanup temp buffers
-    staging_buffer.destroy(vulkan_instance.device);
+    staging_buffer.destroy(vulkan_instance.allocator);
 }
 
 void Vulkan_Window::create_index_buffer()
@@ -682,24 +686,18 @@ void Vulkan_Window::create_index_buffer()
     VkDeviceSize buffer_size = konata_model.get_indices_size();
     Buffer staging_buffer;
     staging_buffer.create(vulkan_instance, buffer_size,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-    void* data;
-    vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, buffer_size, 0, &data);
-    memcpy(data, konata_model.get_indices_ptr(), (size_t)buffer_size);
-    vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+    memcpy(staging_buffer.allocation_info.pMappedData, konata_model.get_indices_ptr(), (size_t)buffer_size);
 
     //Create index buffer as device only buffer
-    index_buffer.create(vulkan_instance, buffer_size,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    index_buffer.create(vulkan_instance, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0);
 
     //Copy data from host to device
     copy_buffer(staging_buffer.buffer, index_buffer.buffer, buffer_size);
 
     //Data on device, cleanup temp buffers
-    staging_buffer.destroy(vulkan_instance.device);
+    staging_buffer.destroy(vulkan_instance.allocator);
 }
 
 void Vulkan_Window::create_instance_buffers()
@@ -712,23 +710,18 @@ void Vulkan_Window::create_instance_buffers()
         Buffer staging_buffer;
         staging_buffer.create(vulkan_instance, vertex_buffer_size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-        void* data;
-        vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, vertex_buffer_size, 0, &data);
-        memcpy(data, instance_konata.model.get_vertices_ptr(), (size_t)vertex_buffer_size);
-        vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+        memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_vertices_ptr(), (size_t)vertex_buffer_size);
 
         //Create vertex buffer as device only buffer
-        instance_vertex_buffer.create(vulkan_instance, vertex_buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        instance_vertex_buffer.create(vulkan_instance, vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
 
         //Copy data from host to device
         copy_buffer(staging_buffer.buffer, instance_vertex_buffer.buffer, vertex_buffer_size);
 
         //Data on device, cleanup temp buffers
-        staging_buffer.destroy(vulkan_instance.device);
+        staging_buffer.destroy(vulkan_instance.allocator);
     }
     {
         ///Instance index buffer
@@ -736,23 +729,18 @@ void Vulkan_Window::create_instance_buffers()
         Buffer staging_buffer;
         staging_buffer.create(vulkan_instance, index_buffer_size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-        void* data;
-        vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, index_buffer_size, 0, &data);
-        memcpy(data, instance_konata.model.get_indices_ptr(), (size_t)index_buffer_size);
-        vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+        memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_indices_ptr(), (size_t)index_buffer_size);
 
         //Create index buffer as device only buffer
-        instance_index_buffer.create(vulkan_instance, index_buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        instance_index_buffer.create(vulkan_instance, index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0);
 
         //Copy data from host to device
         copy_buffer(staging_buffer.buffer, instance_index_buffer.buffer, index_buffer_size);
 
         //Data on device, cleanup temp buffers
-        staging_buffer.destroy(vulkan_instance.device);
+        staging_buffer.destroy(vulkan_instance.allocator);
     }
 
     {
@@ -788,23 +776,18 @@ void Vulkan_Window::create_instance_buffers()
         Buffer staging_buffer;
         staging_buffer.create(vulkan_instance, instance_data_buffer_size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-        void* data;
-        vkMapMemory(vulkan_instance.device, staging_buffer.device_memory, 0, instance_data_buffer_size, 0, &data);
-        memcpy(data, instance_konata.model.get_indices_ptr(), (size_t)instance_data_buffer_size);
-        vkUnmapMemory(vulkan_instance.device, staging_buffer.device_memory);
+        memcpy(staging_buffer.allocation_info.pMappedData, konata_instances_data.data(), (size_t)instance_data_buffer_size);
 
-        //Create vertex buffer as device only buffer
-        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        //Create instance buffer as device only buffer
+        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
 
         //Copy data from host to device
         copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, instance_data_buffer_size);
 
         //Data on device, cleanup temp buffers
-        staging_buffer.destroy(vulkan_instance.device);
+        staging_buffer.destroy(vulkan_instance.allocator);
     }
 }
 
@@ -817,10 +800,12 @@ void Vulkan_Window::create_uniform_buffers()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        uniform_buffers[i].create(vulkan_instance, buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        uniform_buffers[i].create(vulkan_instance, buffer_size,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-        //Map pointer to memory so we can write to the buffer, this pointer is persistant throughout the applications lifetime
-        vkMapMemory(vulkan_instance.device, uniform_buffers[i].device_memory, 0, buffer_size, 0, &uniform_buffers_mapped[i]);
+        ////Map pointer to memory so we can write to the buffer, this pointer is persistant throughout the applications lifetime
+        //vkMapMemory(vulkan_instance.device, uniform_buffers[i].device_memory, 0, buffer_size, 0, &uniform_buffers_mapped[i]);
     }
 }
 
@@ -1007,6 +992,13 @@ void Vulkan_Window::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, V
     buffer_info.usage = usage;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only used by graphics queue
     buffer_info.flags = 0;
+
+    //VmaAllocationCreateInfo alloc_info = {};
+    //alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+
+    //VmaAllocation allocation;
+    //vmaCreateBuffer();
+
 
     if (vkCreateBuffer(vulkan_instance.device, &buffer_info, nullptr, &buffer) != VK_SUCCESS)
     {

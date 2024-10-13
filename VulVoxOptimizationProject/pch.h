@@ -47,6 +47,9 @@
 //Tiny object loader, library for model loading
 #include <tiny_obj_loader.h>
 
+//Vulkan memory allocator for easier memory management
+#include <vk_mem_alloc.h>
+
 #include "utils.h"
 #include "vertex.h"
 #include "mvp.h"

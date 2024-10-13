@@ -35,7 +35,9 @@ public:
 
     void init_instance();
     void init_device(const VkSurfaceKHR surface);
+    void init_allocator();
 
+    void cleanup_allocator();
     void cleanup_instance();
     void cleanup_device();
 
@@ -58,6 +60,9 @@ public:
     VkInstance instance = VK_NULL_HANDLE; //Vulkan context (driver access)
     VkPhysicalDevice physical_device = VK_NULL_HANDLE; //Physical GPU
     VkDevice device = VK_NULL_HANDLE; //Logical GPU context
+
+    //Memory allocation helper
+    VmaAllocator allocator;
 
     //Queues that send commands to the command buffers
     VkQueue graphics_queue = VK_NULL_HANDLE;
