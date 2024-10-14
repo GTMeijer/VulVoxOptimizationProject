@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "vulkan_image.h"
 
-void Image::create_image(Vulkan_Instance* vulkan_instance, uint32_t image_width, uint32_t image_height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags)
+void Image::create_image(Vulkan_Instance* vulkan_instance, uint32_t image_width, uint32_t image_height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImageAspectFlags aspect_flags, VmaMemoryUsage memory_usage)
 {
     this->vulkan_instance = vulkan_instance;
     this->width = image_width;
@@ -26,26 +26,13 @@ void Image::create_image(Vulkan_Instance* vulkan_instance, uint32_t image_width,
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.flags = 0; //Optional
 
-    if (vkCreateImage(vulkan_instance->device, &image_info, nullptr, &image) != VK_SUCCESS)
+    VmaAllocationCreateInfo image_alloc_info{};
+    image_alloc_info.usage = memory_usage;
+
+    if (vmaCreateImage(vulkan_instance->allocator, &image_info, &image_alloc_info, &image, &allocation, &allocation_info) != VK_SUCCESS);
     {
         throw std::runtime_error("Failed to create image!");
     }
-
-    VkMemoryRequirements memory_requirements;
-    vkGetImageMemoryRequirements(vulkan_instance->device, image, &memory_requirements);
-
-    //Allocate memory for the texture image
-    VkMemoryAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = memory_requirements.size;
-    allocate_info.memoryTypeIndex = vulkan_instance->find_memory_type(memory_requirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(vulkan_instance->device, &allocate_info, nullptr, &image_memory) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to allocate image memory!");
-    }
-
-    vkBindImageMemory(vulkan_instance->device, image, image_memory, 0);
 }
 
 void Image::create_image_view()
@@ -169,14 +156,11 @@ void Image::transition_image_layout(VkCommandBuffer command_buffer, VkImageLayou
     current_layout = new_layout;
 }
 
-//TODO: Probably needs a factory function for the eventual API
 void Image::destroy()
 {
     vkDestroySampler(vulkan_instance->device, sampler, nullptr);
 
     vkDestroyImageView(vulkan_instance->device, image_view, nullptr);
 
-    vkDestroyImage(vulkan_instance->device, image, nullptr);
-
-    vkFreeMemory(vulkan_instance->device, image_memory, nullptr);
+    vmaDestroyImage(vulkan_instance->allocator, image, allocation);
 }

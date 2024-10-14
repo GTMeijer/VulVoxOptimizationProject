@@ -65,7 +65,6 @@ private:
 
     void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
 
-    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory);
     void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
     void create_texture_image();
@@ -154,8 +153,6 @@ private:
     Buffer instance_vertex_buffer;
     Buffer instance_index_buffer;
     Buffer instance_data_buffer;
-
-
 
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing

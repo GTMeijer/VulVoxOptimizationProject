@@ -926,7 +926,6 @@ void Vulkan_Window::create_descriptor_sets()
         //Apply updates
         vkUpdateDescriptorSets(vulkan_instance.device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
     }
-
 }
 
 void Vulkan_Window::create_command_buffer()
@@ -970,47 +969,6 @@ void Vulkan_Window::create_sync_objects()
     }
 }
 
-void Vulkan_Window::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& buffer_memory)
-{
-    VkBufferCreateInfo buffer_info{};
-    buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    buffer_info.size = size;
-    buffer_info.usage = usage;
-    buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only used by graphics queue
-    buffer_info.flags = 0;
-
-    //VmaAllocationCreateInfo alloc_info = {};
-    //alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-
-    //VmaAllocation allocation;
-    //vmaCreateBuffer();
-
-
-    if (vkCreateBuffer(vulkan_instance.device, &buffer_info, nullptr, &buffer) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create vertex buffer!");
-    }
-
-    //Query the physical device requirements to use the vertex buffer
-    VkMemoryRequirements memory_requirements;
-    vkGetBufferMemoryRequirements(vulkan_instance.device, buffer, &memory_requirements);
-
-    VkMemoryAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = memory_requirements.size;
-    //The memory has to be writable from the CPU side
-    //Also, ensure the mapped memory matches the content of the allocated memory (no flush needed)
-    allocate_info.memoryTypeIndex = vulkan_instance.find_memory_type(memory_requirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(vulkan_instance.device, &allocate_info, nullptr, &buffer_memory) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to allocate vertex buffer memory!");
-    }
-
-    //Bind the buffer to the allocated memory
-    vkBindBufferMemory(vulkan_instance.device, buffer, buffer_memory, 0);
-}
-
 /// <summary>
 /// Creates a temporary command buffer that transfers data between scr and dst buffers, executed immediately
 /// </summary>
@@ -1032,6 +990,7 @@ void Vulkan_Window::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDevi
     end_single_time_commands(command_buffer);
 }
 
+//TODO Copy to image class?
 void Vulkan_Window::create_texture_image()
 {
     int texture_width;
@@ -1048,21 +1007,17 @@ void Vulkan_Window::create_texture_image()
     }
 
     //Setup host visible staging buffer
-    VkBuffer staging_buffer;
-    VkDeviceMemory staging_buffer_memory;
-    create_buffer(image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+    Buffer staging_buffer;
+    staging_buffer.create(vulkan_instance, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
     //Copy the texture data into the staging buffer
-    void* data;
-    vkMapMemory(vulkan_instance.device, staging_buffer_memory, 0, image_size, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(image_size));
-    vkUnmapMemory(vulkan_instance.device, staging_buffer_memory);
+    memcpy(staging_buffer.allocation_info.pMappedData, pixels, (size_t)image_size);
 
+    //Image in staging buffer, we can free the image data
     stbi_image_free(pixels);
 
-    //Texels == pixels
-
-    texture_image.create_image(&vulkan_instance, texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+    texture_image.create_image(&vulkan_instance, texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, VMA_MEMORY_USAGE_AUTO);
 
     //Change layout of target image memory to be optimal for writing destination
     {
@@ -1074,7 +1029,7 @@ void Vulkan_Window::create_texture_image()
     }
 
     //Transfer the image data from the staging buffer to the image memory
-    copy_buffer_to_image(staging_buffer, texture_image.image, texture_image.width, texture_image.height);
+    copy_buffer_to_image(staging_buffer.buffer, texture_image.image, texture_image.width, texture_image.height);
 
     //Change layout of image memory to be optimal for reading by a shader
     {
@@ -1085,8 +1040,7 @@ void Vulkan_Window::create_texture_image()
         end_single_time_commands(command_buffer);
     }
 
-    vkDestroyBuffer(vulkan_instance.device, staging_buffer, nullptr);
-    vkFreeMemory(vulkan_instance.device, staging_buffer_memory, nullptr);
+    staging_buffer.destroy(vulkan_instance.allocator);
 }
 
 void Vulkan_Window::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)

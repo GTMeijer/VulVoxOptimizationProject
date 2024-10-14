@@ -6,7 +6,7 @@ public:
 
     Image() = default;
 
-    void create_image(Vulkan_Instance* vulkan_instance, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags);
+    void create_image(Vulkan_Instance* vulkan_instance, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImageAspectFlags aspect_flags, VmaMemoryUsage memory_usage);
     void create_image_view();
     void create_texture_sampler();
 
@@ -15,8 +15,10 @@ public:
     void destroy();
 
     VkImage image;
+    VmaAllocation allocation;
+    VmaAllocationInfo allocation_info;
+
     VkImageLayout current_layout;
-    VkDeviceMemory image_memory;
     VkImageView image_view;
 
     uint32_t width;
