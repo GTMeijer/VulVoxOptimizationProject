@@ -146,14 +146,11 @@ void Vulkan_Window::init_vulkan()
     std::cout << "Init vulkan.." << std::endl;
 
     vulkan_instance.init_instance();
-
-    create_surface();
-
-    vulkan_instance.init_device(surface);
-
+    vulkan_instance.init_surface(window);
+    vulkan_instance.init_device();
     vulkan_instance.init_allocator();
 
-    swap_chain.create_swap_chain(window, surface);
+    swap_chain.create_swap_chain(window, vulkan_instance.surface);
 
     create_render_pass();
     create_descriptor_set_layout();
@@ -223,24 +220,13 @@ void Vulkan_Window::cleanup()
     vkDestroyCommandPool(vulkan_instance.device, command_pool, nullptr);
 
     vulkan_instance.cleanup_allocator();
-
     vulkan_instance.cleanup_device();
-
-    vkDestroySurfaceKHR(vulkan_instance.instance, surface, nullptr);
-
+    vulkan_instance.cleanup_surface();
     vulkan_instance.cleanup_instance();
 
     glfwDestroyWindow(window);
 
     glfwTerminate();
-}
-
-void Vulkan_Window::create_surface()
-{
-    if (glfwCreateWindowSurface(vulkan_instance.instance, window, nullptr, &surface) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create window surface!");
-    }
 }
 
 void Vulkan_Window::create_render_pass()
@@ -627,7 +613,7 @@ void Vulkan_Window::create_framebuffers()
 /// </summary>
 void Vulkan_Window::create_command_pool()
 {
-    Queue_Family_Indices queue_family_indices = vulkan_instance.get_queue_families(surface);
+    Queue_Family_Indices queue_family_indices = vulkan_instance.get_queue_families(vulkan_instance.surface);
 
     VkCommandPoolCreateInfo pool_info{};
     pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -1274,7 +1260,7 @@ void Vulkan_Window::recreate_swap_chain()
 
     cleanup_swap_chain();
 
-    swap_chain.create_swap_chain(window, surface);
+    swap_chain.create_swap_chain(window, vulkan_instance.surface);
 
     create_depth_resources(); //Depend on depth image
     create_framebuffers(); //Depend on image views

@@ -93,7 +93,6 @@ private:
     //Vulkan and device contexts
     Vulkan_Instance vulkan_instance;
 
-    VkSurfaceKHR surface;
     Vulkan_Swap_Chain swap_chain;
 
     //Command pool and the allocated command buffers that store the commands send to the GPU

@@ -34,11 +34,13 @@ public:
     Vulkan_Instance() = default;
 
     void init_instance();
-    void init_device(const VkSurfaceKHR surface);
+    void init_surface(GLFWwindow* window);
+    void init_device();
     void init_allocator();
 
     void cleanup_allocator();
     void cleanup_instance();
+    void cleanup_surface();
     void cleanup_device();
 
     std::string get_physical_device_name() const;
@@ -58,6 +60,7 @@ public:
 
     //Vulkan and device contexts
     VkInstance instance = VK_NULL_HANDLE; //Vulkan context (driver access)
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
     VkPhysicalDevice physical_device = VK_NULL_HANDLE; //Physical GPU
     VkDevice device = VK_NULL_HANDLE; //Logical GPU context
 

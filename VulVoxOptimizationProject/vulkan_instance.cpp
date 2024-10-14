@@ -466,7 +466,15 @@ void Vulkan_Instance::init_instance()
     create_instance();
 }
 
-void Vulkan_Instance::init_device(const VkSurfaceKHR surface)
+void Vulkan_Instance::init_surface(GLFWwindow* window)
+{
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create window surface!");
+    }
+}
+
+void Vulkan_Instance::init_device()
 {
     pick_physical_device(surface);
     create_logical_device(surface);
@@ -494,6 +502,11 @@ void Vulkan_Instance::cleanup_allocator()
 void Vulkan_Instance::cleanup_instance()
 {
     vkDestroyInstance(instance, nullptr);
+}
+
+void Vulkan_Instance::cleanup_surface()
+{
+    vkDestroySurfaceKHR(instance, surface, nullptr);
 }
 
 
