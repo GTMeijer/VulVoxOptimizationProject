@@ -39,8 +39,6 @@ private:
 
     void update_uniform_buffer(uint32_t current_image);
 
-    void create_surface();
-
     //Swap chain recreation functions
     void recreate_swap_chain();
     void cleanup_swap_chain();
