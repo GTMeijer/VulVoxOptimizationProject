@@ -29,9 +29,10 @@ void Image::create_image(Vulkan_Instance* vulkan_instance, uint32_t image_width,
     VmaAllocationCreateInfo image_alloc_info{};
     image_alloc_info.usage = memory_usage;
 
-    if (vmaCreateImage(vulkan_instance->allocator, &image_info, &image_alloc_info, &image, &allocation, &allocation_info) != VK_SUCCESS);
+    if (VkResult result = vmaCreateImage(vulkan_instance->allocator, &image_info, &image_alloc_info, &image, &allocation, &allocation_info); result != VK_SUCCESS)
     {
-        throw std::runtime_error("Failed to create image!");
+        std::string error_string{ string_VkResult(result) };
+        throw std::runtime_error("Failed to create image!" + error_string);
     }
 }
 
