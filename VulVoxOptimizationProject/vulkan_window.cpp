@@ -2,7 +2,7 @@
 #include "vulkan_window.h"
 
 //TODO: Probably do some lambda stuff here?
-void Vulkan_Window::main_loop()
+void Vulkan_Renderer::main_loop()
 {
     while (!glfwWindowShouldClose(window))
     {
@@ -14,7 +14,7 @@ void Vulkan_Window::main_loop()
     vkDeviceWaitIdle(vulkan_instance.device);
 }
 
-void Vulkan_Window::draw_frame()
+void Vulkan_Renderer::draw_frame()
 {
     vkWaitForFences(vulkan_instance.device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
 
@@ -100,7 +100,7 @@ void Vulkan_Window::draw_frame()
     current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
+void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
 {
     static auto start_time = std::chrono::high_resolution_clock::now();
     auto current_time = std::chrono::high_resolution_clock::now();
@@ -123,7 +123,7 @@ void Vulkan_Window::update_uniform_buffer(uint32_t current_image)
     memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp, sizeof(mvp));
 }
 
-void Vulkan_Window::init_window()
+void Vulkan_Renderer::init_window()
 {
     std::cout << "Init window.." << std::endl;
 
@@ -141,7 +141,7 @@ void Vulkan_Window::init_window()
     std::cout << "Window initialized." << std::endl;
 }
 
-void Vulkan_Window::init_vulkan()
+void Vulkan_Renderer::init_vulkan()
 {
     std::cout << "Init vulkan.." << std::endl;
 
@@ -178,7 +178,7 @@ void Vulkan_Window::init_vulkan()
     std::cout << "Vulkan initialized." << std::endl;
 }
 
-void Vulkan_Window::cleanup()
+void Vulkan_Renderer::cleanup()
 {
     cleanup_swap_chain();
 
@@ -229,7 +229,7 @@ void Vulkan_Window::cleanup()
     glfwTerminate();
 }
 
-void Vulkan_Window::create_render_pass()
+void Vulkan_Renderer::create_render_pass()
 {
     //The render pass describes the framebuffer attachments 
     //and how many color and depth buffers there are
@@ -311,7 +311,7 @@ void Vulkan_Window::create_render_pass()
 /// Some hardware only allows up to four descriptor sets being created,
 /// so instead of allocating a seperate set for each resource we bind them together into one.
 /// </summary>
-void Vulkan_Window::create_descriptor_set_layout()
+void Vulkan_Renderer::create_descriptor_set_layout()
 {
     //Layout binding for the uniform buffer
     VkDescriptorSetLayoutBinding ubo_layout_binding{};
@@ -343,7 +343,7 @@ void Vulkan_Window::create_descriptor_set_layout()
     }
 }
 
-void Vulkan_Window::create_graphics_pipeline()
+void Vulkan_Renderer::create_graphics_pipeline()
 {
 
     //Define global variables (like a MVP matrix)
@@ -583,7 +583,7 @@ void Vulkan_Window::create_graphics_pipeline()
 /// <summary>
 /// Creates the framebuffers that can be used as a draw target in the renderpass
 /// </summary>
-void Vulkan_Window::create_framebuffers()
+void Vulkan_Renderer::create_framebuffers()
 {
     swap_chain.framebuffers.resize(swap_chain.image_views.size());
 
@@ -611,7 +611,7 @@ void Vulkan_Window::create_framebuffers()
 /// <summary>
 /// Creates the command pool that manages the memory that stores the buffers
 /// </summary>
-void Vulkan_Window::create_command_pool()
+void Vulkan_Renderer::create_command_pool()
 {
     Queue_Family_Indices queue_family_indices = vulkan_instance.get_queue_families(vulkan_instance.surface);
 
@@ -627,7 +627,7 @@ void Vulkan_Window::create_command_pool()
     }
 }
 
-void Vulkan_Window::create_depth_resources()
+void Vulkan_Renderer::create_depth_resources()
 {
     VkFormat depth_format = vulkan_instance.find_depth_format();
 
@@ -646,7 +646,7 @@ void Vulkan_Window::create_depth_resources()
 /// <summary>
 /// Creates the memory buffer containing our vertex data
 /// </summary>
-void Vulkan_Window::create_vertex_buffer()
+void Vulkan_Renderer::create_vertex_buffer()
 {
     VkDeviceSize buffer_size = konata_model.get_vertices_size();
 
@@ -667,7 +667,7 @@ void Vulkan_Window::create_vertex_buffer()
     staging_buffer.destroy(vulkan_instance.allocator);
 }
 
-void Vulkan_Window::create_index_buffer()
+void Vulkan_Renderer::create_index_buffer()
 {
     VkDeviceSize buffer_size = konata_model.get_indices_size();
     Buffer staging_buffer;
@@ -686,7 +686,7 @@ void Vulkan_Window::create_index_buffer()
     staging_buffer.destroy(vulkan_instance.allocator);
 }
 
-void Vulkan_Window::create_instance_buffers()
+void Vulkan_Renderer::create_instance_buffers()
 {
     {
         ///Instance vertex buffer
@@ -777,7 +777,7 @@ void Vulkan_Window::create_instance_buffers()
     }
 }
 
-void Vulkan_Window::create_uniform_buffers()
+void Vulkan_Renderer::create_uniform_buffers()
 {
     VkDeviceSize buffer_size = sizeof(MVP);
 
@@ -795,7 +795,7 @@ void Vulkan_Window::create_uniform_buffers()
     }
 }
 
-void Vulkan_Window::create_descriptor_pool()
+void Vulkan_Renderer::create_descriptor_pool()
 {
     std::array<VkDescriptorPoolSize, 2> pool_sizes{};
 
@@ -818,7 +818,7 @@ void Vulkan_Window::create_descriptor_pool()
     }
 }
 
-void Vulkan_Window::create_descriptor_sets()
+void Vulkan_Renderer::create_descriptor_sets()
 {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
 
@@ -928,7 +928,7 @@ void Vulkan_Window::create_descriptor_sets()
     }
 }
 
-void Vulkan_Window::create_command_buffer()
+void Vulkan_Renderer::create_command_buffer()
 {
     command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
 
@@ -945,7 +945,7 @@ void Vulkan_Window::create_command_buffer()
     }
 }
 
-void Vulkan_Window::create_sync_objects()
+void Vulkan_Renderer::create_sync_objects()
 {
     image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
     render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -975,7 +975,7 @@ void Vulkan_Window::create_sync_objects()
 /// <param name="src_buffer"></param>
 /// <param name="dst_buffer"></param>
 /// <param name="size"></param>
-void Vulkan_Window::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
+void Vulkan_Renderer::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
 {
     VkCommandBuffer command_buffer = begin_single_time_commands();
 
@@ -991,7 +991,7 @@ void Vulkan_Window::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDevi
 }
 
 //TODO Copy to image class?
-void Vulkan_Window::create_texture_image()
+void Vulkan_Renderer::create_texture_image()
 {
     int texture_width;
     int texture_height;
@@ -1043,7 +1043,7 @@ void Vulkan_Window::create_texture_image()
     staging_buffer.destroy(vulkan_instance.allocator);
 }
 
-void Vulkan_Window::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
+void Vulkan_Renderer::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout)
 {
     //Todo move to command class?
     VkCommandBuffer command_buffer = begin_single_time_commands();
@@ -1051,18 +1051,18 @@ void Vulkan_Window::transition_image_layout(VkImage image, VkFormat format, VkIm
     end_single_time_commands(command_buffer);
 }
 
-void Vulkan_Window::create_texture_image_view()
+void Vulkan_Renderer::create_texture_image_view()
 {
     //texture_image_view = create_image_view(vulkan_instance.device, texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
     texture_image.create_image_view();
 }
 
-void Vulkan_Window::create_texture_sampler()
+void Vulkan_Renderer::create_texture_sampler()
 {
     texture_image.create_texture_sampler();
 }
 
-void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+void Vulkan_Renderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
     VkCommandBuffer command_buffer = begin_single_time_commands();
 
@@ -1092,7 +1092,7 @@ void Vulkan_Window::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_
     end_single_time_commands(command_buffer);
 }
 
-void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
+void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
 {
 
     //Describe a new render pass targeting the given image index in the swapchain
@@ -1190,7 +1190,7 @@ void Vulkan_Window::record_command_buffer(VkCommandBuffer command_buffer, uint32
 }
 
 
-void Vulkan_Window::cleanup_swap_chain()
+void Vulkan_Renderer::cleanup_swap_chain()
 {
     //Destroy objects that depend on the swap chain
     depth_image.destroy();
@@ -1199,7 +1199,7 @@ void Vulkan_Window::cleanup_swap_chain()
     swap_chain.cleanup_swap_chain();
 }
 
-void Vulkan_Window::recreate_swap_chain()
+void Vulkan_Renderer::recreate_swap_chain()
 {
     int new_width = 0;
     int new_height = 0;
@@ -1229,7 +1229,7 @@ void Vulkan_Window::recreate_swap_chain()
 /// <returns>
 /// The allocated and ready-to-record VkCommandBuffer.
 /// </returns>
-VkCommandBuffer Vulkan_Window::begin_single_time_commands()
+VkCommandBuffer Vulkan_Renderer::begin_single_time_commands()
 {
 
     VkCommandBufferAllocateInfo allocate_info{};
@@ -1251,7 +1251,7 @@ VkCommandBuffer Vulkan_Window::begin_single_time_commands()
     return command_buffer;
 }
 
-void Vulkan_Window::end_single_time_commands(VkCommandBuffer command_buffer)
+void Vulkan_Renderer::end_single_time_commands(VkCommandBuffer command_buffer)
 {
     vkEndCommandBuffer(command_buffer);
 
@@ -1267,7 +1267,7 @@ void Vulkan_Window::end_single_time_commands(VkCommandBuffer command_buffer)
     vkFreeCommandBuffers(vulkan_instance.device, command_pool, 1, &command_buffer);
 }
 
-VkShaderModule Vulkan_Window::create_shader_module(const std::vector<char>& bytecode)
+VkShaderModule Vulkan_Renderer::create_shader_module(const std::vector<char>& bytecode)
 {
     VkShaderModuleCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1283,7 +1283,7 @@ VkShaderModule Vulkan_Window::create_shader_module(const std::vector<char>& byte
     return shader_module;
 }
 
-bool Vulkan_Window::has_stencil_component(VkFormat format) const
+bool Vulkan_Renderer::has_stencil_component(VkFormat format) const
 {
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }

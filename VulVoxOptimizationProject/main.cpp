@@ -3,7 +3,7 @@
 
 int main()
 {
-    Vulkan_Window app;
+    Vulkan_Renderer app;
 
     try
     {

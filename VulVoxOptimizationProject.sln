@@ -5,6 +5,11 @@ VisualStudioVersion = 17.10.34928.147
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "VulVoxOptimizationProject", "VulVoxOptimizationProject\VulVoxOptimizationProject.vcxproj", "{E364BE00-F6F7-4820-91B4-CB88F9F6B795}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OptimizationPlayground", "OptimizationPlayground\OptimizationPlayground.vcxproj", "{7A378DE7-F1FF-45CC-BCBF-440D414C4273}"
+	ProjectSection(ProjectDependencies) = postProject
+		{E364BE00-F6F7-4820-91B4-CB88F9F6B795} = {E364BE00-F6F7-4820-91B4-CB88F9F6B795}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +20,10 @@ Global
 		{E364BE00-F6F7-4820-91B4-CB88F9F6B795}.Debug|x64.Build.0 = Debug|x64
 		{E364BE00-F6F7-4820-91B4-CB88F9F6B795}.Release|x64.ActiveCfg = Release|x64
 		{E364BE00-F6F7-4820-91B4-CB88F9F6B795}.Release|x64.Build.0 = Release|x64
+		{7A378DE7-F1FF-45CC-BCBF-440D414C4273}.Debug|x64.ActiveCfg = Debug|x64
+		{7A378DE7-F1FF-45CC-BCBF-440D414C4273}.Debug|x64.Build.0 = Debug|x64
+		{7A378DE7-F1FF-45CC-BCBF-440D414C4273}.Release|x64.ActiveCfg = Release|x64
+		{7A378DE7-F1FF-45CC-BCBF-440D414C4273}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

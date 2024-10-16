@@ -1,10 +1,10 @@
 #pragma once
 
-class Vulkan_Window
+class Vulkan_Renderer
 {
 public:
 
-    Vulkan_Window() : swap_chain(&vulkan_instance)
+    Vulkan_Renderer() : swap_chain(&vulkan_instance)
     {
 
     }
@@ -163,6 +163,6 @@ private:
 static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
 {
     //Retrieve the object instance the window belongs to
-    auto app = reinterpret_cast<Vulkan_Window*>(glfwGetWindowUserPointer(window));
+    auto app = reinterpret_cast<Vulkan_Renderer*>(glfwGetWindowUserPointer(window));
     app->framebuffer_resized = true;
 }
