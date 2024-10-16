@@ -9,10 +9,13 @@ void Vulkan_Renderer::main_loop()
         glfwPollEvents();
         draw_frame();
     }
-
-    //Wait until all operations are completed before cleanup
-    vkDeviceWaitIdle(vulkan_instance.device);
 }
+
+bool Vulkan_Renderer::should_close() const
+{
+    return glfwWindowShouldClose(window);
+}
+
 
 void Vulkan_Renderer::draw_frame()
 {
@@ -107,11 +110,7 @@ void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
 
     float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
-    //Rotate around the z-axis
-    MVP mvp{};
-    mvp.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f, 0.25f, 0.25f)) * glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)) * glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1.0f, 0.0f, 0.0f));
-    mvp.view = glm::lookAt(glm::vec3(20.0f, 20.0f, 20.0f), glm::vec3(0.0f, 0.0f, 15.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain.extent.width / (float)swap_chain.extent.height, 0.1f, 100.0f);
+
 
     //mvp.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
     //mvp.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -123,14 +122,31 @@ void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
     memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp, sizeof(mvp));
 }
 
-void Vulkan_Renderer::init_window()
+void Vulkan_Renderer::update_camera(const MVP& camera_matrix)
 {
+    model_view_projection = camera_matrix;
+}
+
+void Vulkan_Renderer::resize_window(const uint32_t new_width, const uint32_t new_height)
+{
+    this->width = new_width;
+    this->height = new_height;
+
+    //Will also call the resize callback so the render engine will recreate the swapchain
+    glfwSetWindowSize(window, new_width, new_height);
+}
+
+void Vulkan_Renderer::init_window(uint32_t width, uint32_t height)
+{
+    this->width = width;
+    this->height = height;
+
     std::cout << "Init window.." << std::endl;
 
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     window = glfwCreateWindow(width, height, "Vulkan", nullptr, nullptr);
 
@@ -180,6 +196,13 @@ void Vulkan_Renderer::init_vulkan()
 
 void Vulkan_Renderer::cleanup()
 {
+    if (!is_initialized)
+    {
+        return;
+    }
+    //Wait until all operations are completed before cleanup
+    vkDeviceWaitIdle(vulkan_instance.device);
+
     cleanup_swap_chain();
 
     vkDestroyPipeline(vulkan_instance.device, vertex_pipeline, nullptr);

@@ -9,18 +9,20 @@ public:
 
     }
 
-    void init()
+    void init(uint32_t width, uint32_t height)
     {
-        init_window();
+        init_window(width, height);
         init_vulkan();
         is_initialized = true;
     }
 
-    void run()
-    {
-        main_loop();
-        cleanup();
-    }
+    void draw_frame();
+    void cleanup();
+
+    bool should_close() const;
+
+    void update_camera(const MVP& camera_matrix);
+    void resize_window(const uint32_t width, const uint32_t height);
 
     bool framebuffer_resized = false;
 
@@ -29,13 +31,13 @@ private:
     bool is_initialized = false;
     int frame_count = 0;
 
-    void init_window();
+    void init_window(uint32_t width, uint32_t height);
     void init_vulkan();
 
     void main_loop();
-    void draw_frame();
 
-    void cleanup();
+
+
 
     void update_uniform_buffer(uint32_t current_image);
 
@@ -153,6 +155,8 @@ private:
     Buffer instance_vertex_buffer;
     Buffer instance_index_buffer;
     Buffer instance_data_buffer;
+
+    MVP model_view_projection;
 
     //We don't want to wait for the previous frame to finish while processing the next frame,
     //so we create double the amount of buffers so we can overlap frame processing

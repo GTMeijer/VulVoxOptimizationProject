@@ -5,7 +5,7 @@
 /// </summary>
 struct MVP
 {
-    glm::mat4 model; //Model space
-    glm::mat4 view; //Camera space
-    glm::mat4 projection; //Clip space
+    glm::mat4 model{ 1.0f }; //Model space
+    glm::mat4 view{ 1.0f }; //Camera space
+    glm::mat4 projection{ 1.0f }; //Clip space
 };

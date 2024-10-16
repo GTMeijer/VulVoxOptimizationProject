@@ -3,18 +3,18 @@
 
 int main()
 {
-    Vulkan_Renderer app;
+    //Vulkan_Renderer app;
 
-    try
-    {
-        app.init();
-        app.run();
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+    //try
+    //{
+    //    app.init(800, 600);
+    //    app.run();
+    //}
+    //catch (const std::exception& e)
+    //{
+    //    std::cerr << e.what() << std::endl;
+    //    return EXIT_FAILURE;
+    //}
 
-    return EXIT_SUCCESS;
+    //return EXIT_SUCCESS;
 }
