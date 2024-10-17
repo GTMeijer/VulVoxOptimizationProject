@@ -116,7 +116,7 @@ void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
     //mvp.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     //mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain.extent.width / (float)swap_chain.extent.height, 0.1f, 10.0f);
 
-    mvp.projection[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
+    //mvp.projection[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
 
     //memcpy(uniform_buffers_mapped[current_image], &mvp, sizeof(mvp));
     memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp, sizeof(mvp));
