@@ -8,6 +8,8 @@ float rotation = 0.f;
 float scale = 1.f;
 glm::vec3 position;
 
+
+
 void update(float delta_time)
 {
     //Rotate around the z-axis

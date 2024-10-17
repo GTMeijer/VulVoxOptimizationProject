@@ -5,3 +5,5 @@
 
 #include "../VulVoxOptimizationProject/pch.h"
 #include "../VulVoxOptimizationProject/vulkan_window.h"
+
+#include "camera.h"
