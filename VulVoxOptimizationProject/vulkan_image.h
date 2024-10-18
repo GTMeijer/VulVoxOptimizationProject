@@ -1,47 +1,50 @@
 #pragma once
 
-class Image
+namespace vulvox
 {
-public:
+    class Image
+    {
+    public:
 
-    Image() = default;
+        Image() = default;
 
-    void create_image(Vulkan_Instance* vulkan_instance, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImageAspectFlags aspect_flags, VmaMemoryUsage memory_usage);
-    void create_image_view();
-    void create_texture_sampler();
+        void create_image(Vulkan_Instance* vulkan_instance, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkImageAspectFlags aspect_flags, VmaMemoryUsage memory_usage);
+        void create_image_view();
+        void create_texture_sampler();
 
-    void transition_image_layout(VkCommandBuffer command_buffer, VkImageLayout new_layout);
+        void transition_image_layout(VkCommandBuffer command_buffer, VkImageLayout new_layout);
 
-    void destroy();
+        void destroy();
 
-    VkImage image;
-    VmaAllocation allocation;
-    VmaAllocationInfo allocation_info;
+        VkImage image;
+        VmaAllocation allocation;
+        VmaAllocationInfo allocation_info;
 
-    VkImageLayout current_layout;
-    VkImageView image_view;
+        VkImageLayout current_layout;
+        VkImageView image_view;
 
-    uint32_t width;
-    uint32_t height;
+        uint32_t width;
+        uint32_t height;
 
-    VkFormat format;
-    VkImageAspectFlags aspect_flags;
+        VkFormat format;
+        VkImageAspectFlags aspect_flags;
 
-    VkSampler sampler;
+        VkSampler sampler;
 
-private:
+    private:
 
-    Vulkan_Instance* vulkan_instance;
+        Vulkan_Instance* vulkan_instance;
 
 
-};
+    };
 
-class Texture
-{
+    class Texture
+    {
 
-};
+    };
 
-class TextureArray
-{
+    class TextureArray
+    {
 
-};
+    };
+}
