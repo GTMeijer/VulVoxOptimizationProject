@@ -5,7 +5,6 @@ Camera::Camera(glm::vec3 position, glm::vec3 up, glm::vec3 direction, float aspe
     : position(position), up(glm::normalize(up)), direction(glm::normalize(direction)), aspect_ratio(aspect_ratio), field_of_view(field_of_view), near_plane(near_plane), far_plane(far_plane)
 {
 
-
 }
 
 vulvox::MVP Camera::get_mvp() const
@@ -20,7 +19,6 @@ vulvox::MVP Camera::get_mvp() const
 
 glm::mat4 Camera::get_projection_matrix() const
 {
-    //mvp.projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
     glm::mat4 projection_matrix = glm::perspective(glm::radians(45.0f), aspect_ratio, near_plane, far_plane);;
     projection_matrix[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
     return projection_matrix;
@@ -50,6 +48,7 @@ void Camera::set_up(glm::vec3 new_up)
 void Camera::update_up(const glm::mat4& transformation_matrix)
 {
     up = transformation_matrix * glm::vec4(up, 1.0f);
+    up = glm::normalize(up);
 }
 
 void Camera::move_forward(float distance)

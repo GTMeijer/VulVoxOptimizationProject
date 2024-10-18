@@ -12,11 +12,8 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer)
 
 void Scene::update(float delta_time, GLFWwindow* window)
 {
-    //Rotate around the z-axis
-    //mvp.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.25f, 0.25f, 0.25f)) * glm::rotate(glm::mat4(1.0f), delta_time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)) * glm::rotate(glm::mat4(1.0f), glm::radians(90.f), glm::vec3(1.0f, 0.0f, 0.0f));
-
+    //Update camera on key presses
     float camera_speed = 100.0f;
-
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { camera.move_forward(delta_time * camera_speed); }
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) { camera.move_backward(delta_time * camera_speed); }
     if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) { camera.move_left(delta_time * camera_speed); }

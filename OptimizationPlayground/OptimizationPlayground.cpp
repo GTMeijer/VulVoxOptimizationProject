@@ -1,11 +1,11 @@
 #include "pch.h"
 #include "scene.h"
 
-uint32_t width = 1024;
-uint32_t height = 720;
-
 int main()
 {
+    constexpr uint32_t width = 1024;
+    constexpr uint32_t height = 720;
+
     vulvox::Vulkan_Renderer renderer;
 
     renderer.init(width, height);
@@ -20,10 +20,7 @@ int main()
         previous_frame_time = frame_time;
 
         glfwPollEvents();
-        //TODO: Poll Events -> Set callback
-        //TODO: Update
-        //TODO: Draw
-        
+
         scene.update(delta_time, renderer.get_window());
         scene.draw(renderer);
 
