@@ -3,10 +3,11 @@ class Camera
 {
 public:
 
+    Camera() = default;
     Camera(glm::vec3 position, glm::vec3 up, glm::vec3 direction, float aspect_ratio, float field_of_view, float near_plane, float far_plane);
 
 
-    MVP get_mvp() const;
+    vulvox::MVP get_mvp() const;
     glm::mat4 get_projection_matrix() const;
     glm::mat4 get_view_matrix()  const;
 

@@ -107,13 +107,6 @@ namespace vulvox
 
     void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
     {
-        static auto start_time = std::chrono::high_resolution_clock::now();
-        auto current_time = std::chrono::high_resolution_clock::now();
-
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-
-
-
         //mvp.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
         //mvp.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         //mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain.extent.width / (float)swap_chain.extent.height, 0.1f, 10.0f);
@@ -136,6 +129,11 @@ namespace vulvox
 
         //Will also call the resize callback so the render engine will recreate the swapchain
         glfwSetWindowSize(window, new_width, new_height);
+    }
+
+    float Vulkan_Renderer::get_aspect_ratio() const
+    {
+        return (float)width / (float)height;
     }
 
     void Vulkan_Renderer::init_window(uint32_t width, uint32_t height)

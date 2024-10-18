@@ -27,6 +27,8 @@ namespace vulvox
         void set_camera(const MVP& camera_matrix);
         void resize_window(const uint32_t width, const uint32_t height);
 
+        float get_aspect_ratio() const;
+
         bool framebuffer_resized = false;
 
 

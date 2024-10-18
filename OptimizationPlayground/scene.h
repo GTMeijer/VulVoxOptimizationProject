@@ -2,9 +2,10 @@
 class Scene
 {
 public:
-    Scene() : renderer(renderer) {};
+    Scene(vulvox::Vulkan_Renderer& renderer);
 
-    void draw(Vulkan_Renderer& renderer);
+    void update(float delta_time);
+    void draw(vulvox::Vulkan_Renderer& renderer);
 
 private:
 
