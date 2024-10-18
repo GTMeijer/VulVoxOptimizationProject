@@ -122,6 +122,11 @@ namespace vulvox
         model_view_projection = camera_matrix;
     }
 
+    GLFWwindow* Vulkan_Renderer::get_window()
+    {
+        return window;
+    }
+
     void Vulkan_Renderer::resize_window(const uint32_t new_width, const uint32_t new_height)
     {
         this->width = new_width;
