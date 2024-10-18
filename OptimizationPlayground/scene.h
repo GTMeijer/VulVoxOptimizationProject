@@ -2,12 +2,12 @@
 class Scene
 {
 public:
-    Scene(Vulkan_Renderer* renderer) : renderer(renderer) {};
+    Scene() : renderer(renderer) {};
 
+    void draw(Vulkan_Renderer& renderer);
 
 private:
 
-
-    Vulkan_Renderer* renderer;
+    Camera camera;
 };
 

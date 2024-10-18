@@ -122,7 +122,7 @@ void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
     memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp, sizeof(mvp));
 }
 
-void Vulkan_Renderer::update_camera(const MVP& camera_matrix)
+void Vulkan_Renderer::set_camera(const MVP& camera_matrix)
 {
     model_view_projection = camera_matrix;
 }

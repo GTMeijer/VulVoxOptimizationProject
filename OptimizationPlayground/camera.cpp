@@ -8,7 +8,17 @@ Camera::Camera(glm::vec3 position, glm::vec3 up, glm::vec3 direction, float aspe
 
 }
 
-glm::mat4 Camera::get_projection_matrix()
+MVP Camera::get_mvp() const
+{
+    MVP mvp;
+    mvp.model = glm::mat4(1.0f); //Identity, no need to transform all models
+    mvp.view = get_view_matrix();
+    mvp.projection = get_projection_matrix();
+
+    return mvp;
+}
+
+glm::mat4 Camera::get_projection_matrix() const
 {
     //mvp.projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
     glm::mat4 projection_matrix = glm::perspective(glm::radians(45.0f), aspect_ratio, near_plane, far_plane);;
@@ -16,8 +26,63 @@ glm::mat4 Camera::get_projection_matrix()
     return projection_matrix;
 }
 
-glm::mat4 Camera::get_view_matrix()
+glm::mat4 Camera::get_view_matrix() const
 {
     glm::mat4 view_matrix = glm::lookAt(position, direction, up);
     return view_matrix;
+}
+
+void Camera::set_position(glm::vec3 new_position)
+{
+    position = new_position;
+}
+
+void Camera::update_position(glm::vec3 position_offset)
+{
+    position += position_offset;
+}
+
+void Camera::set_up(glm::vec3 new_up)
+{
+    up = new_up;
+}
+
+void Camera::update_up(const glm::mat4& transformation_matrix)
+{
+    up = transformation_matrix * glm::vec4(up, 1.0f);
+}
+
+void Camera::set_direction(glm::vec3 new_direction)
+{
+    direction = new_direction;
+}
+
+void Camera::update_direction(const glm::mat4& transformation_matrix)
+{
+    direction = transformation_matrix * glm::vec4(direction, 1.0f);
+}
+
+void Camera::update_direction(glm::vec3 direction_offset)
+{
+    direction += direction_offset;
+}
+
+void Camera::set_aspect_ratio(float new_aspect_ratio)
+{
+    aspect_ratio = new_aspect_ratio;
+}
+
+void Camera::set_field_of_view(float new_field_of_view)
+{
+    field_of_view = new_field_of_view;
+}
+
+void Camera::set_near_plane(float new_near_plane)
+{
+    near_plane = new_near_plane;
+}
+
+void Camera::set_far_plane(float new_far_plane)
+{
+    far_plane = new_far_plane;
 }

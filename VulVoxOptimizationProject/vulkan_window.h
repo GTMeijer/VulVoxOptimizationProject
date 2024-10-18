@@ -21,7 +21,7 @@ public:
 
     bool should_close() const;
 
-    void update_camera(const MVP& camera_matrix);
+    void set_camera(const MVP& camera_matrix);
     void resize_window(const uint32_t width, const uint32_t height);
 
     bool framebuffer_resized = false;

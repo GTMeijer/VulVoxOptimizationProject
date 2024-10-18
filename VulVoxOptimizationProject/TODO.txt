@@ -1,4 +1,4 @@
-1. vkAllocateMemory library:
+v 1. vkAllocateMemory library:
 https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/02_Staging_buffer.html
 	2.: Or even better, one buffer: end of https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
 

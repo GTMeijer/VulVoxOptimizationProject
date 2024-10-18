@@ -5,17 +5,19 @@ public:
 
     Camera(glm::vec3 position, glm::vec3 up, glm::vec3 direction, float aspect_ratio, float field_of_view, float near_plane, float far_plane);
 
-    glm::mat4 get_projection_matrix();
-    glm::mat4 get_view_matrix();
+
+    MVP get_mvp() const;
+    glm::mat4 get_projection_matrix() const;
+    glm::mat4 get_view_matrix()  const;
 
     void set_position(glm::vec3 new_position);
     void update_position(glm::vec3 position_offset);
 
     void set_up(glm::vec3 new_up);
-    void update_up(glm::mat4 matrix);
+    void update_up(const glm::mat4& transformation_matrix);
 
     void set_direction(glm::vec3 new_direction);
-    void update_direction(glm::mat4 matrix);
+    void update_direction(const glm::mat4& transformation_matrix);
     void update_direction(glm::vec3 direction_offset);
 
     void set_aspect_ratio(float new_aspect_ratio);
