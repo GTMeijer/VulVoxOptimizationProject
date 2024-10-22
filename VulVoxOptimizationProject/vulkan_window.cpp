@@ -846,6 +846,7 @@ namespace vulvox
         }
     }
 
+    //TODO: Split this up into dynamic
     void Vulkan_Renderer::create_descriptor_sets()
     {
         std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
