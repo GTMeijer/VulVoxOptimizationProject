@@ -90,13 +90,4 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="shaders\triangle_shader.frag" />
-    <None Include="shaders\triangle_shader.vert" />
-    <None Include="shaders\compile_shaders.bat">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="shaders\instance_shader.frag" />
-    <None Include="shaders\instance_shader.vert" />
-  </ItemGroup>
 </Project>

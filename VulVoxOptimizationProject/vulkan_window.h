@@ -36,6 +36,10 @@ namespace vulvox
 
         bool framebuffer_resized = false;
 
+        void load_model(const std::string& name, const std::filesystem::path& path);
+        void load_texture(const std::string& name, const std::filesystem::path& path);
+        void load_texture_array(const std::string& name, const std::filesystem::path& path);
+
     private:
 
         bool is_initialized = false;
@@ -74,9 +78,7 @@ namespace vulvox
 
         void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
-        void create_texture_image();
-        void create_texture_image_view();
-        void create_texture_sampler();
+        Image create_texture_image(const std::filesystem::path& texture_path);
 
         //Image creation help functions
         void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
@@ -107,7 +109,7 @@ namespace vulvox
         std::vector<VkSemaphore> render_finished_semaphores;
         std::vector<VkFence> in_flight_fences; //Fence for draw finish
 
-        VkRenderPass render_pass; //Stores information about the render images
+        VkRenderPass render_pass; //Stores how the render images are handeled
 
         VkDescriptorSetLayout descriptor_set_layout;
         VkPipelineLayout pipeline_layout; //Describes the layout of the 'global' data, e.g. uniform buffers
@@ -146,6 +148,8 @@ namespace vulvox
         Buffer vertex_buffer;
         Buffer index_buffer;
 
+        glm::mat4 single_konata_matrix = glm::mat4(1.0f);
+
         struct Instanced_Model
         {
             Image texture;
@@ -159,6 +163,10 @@ namespace vulvox
         Buffer instance_vertex_buffer;
         Buffer instance_index_buffer;
         Buffer instance_data_buffer;
+        ;
+        std::unordered_map<std::string, Model> models;
+        std::unordered_map<std::string, Image> textures;
+        std::unordered_map<std::string, Image> texture_arrays;
 
         MVP model_view_projection;
 

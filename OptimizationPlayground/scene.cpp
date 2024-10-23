@@ -1,13 +1,17 @@
 #include "pch.h"
 #include "scene.h"
 
-Scene::Scene(const vulvox::Vulkan_Renderer& renderer)
+Scene::Scene(vulvox::Vulkan_Renderer& renderer)
 {
     glm::vec3 camera_pos{ 0.0f, 0.0f, 0.0f };
     glm::vec3 camera_up{ 0.0f, 1.0f, 0.0f };
     glm::vec3 camera_direction{ 0.0f, 0.0f, 1.0f };
 
     camera = Camera(camera_pos, camera_up, camera_direction, renderer.get_aspect_ratio(), glm::radians(45.0f), 0.1f, 1000.0f);
+
+    renderer.load_model("Konata", MODEL_PATH);
+    renderer.load_texture("Konata", TEXTURE_PATH);
+
 }
 
 void Scene::update(float delta_time, GLFWwindow* window)

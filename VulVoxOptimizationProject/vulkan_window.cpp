@@ -96,13 +96,6 @@ namespace vulvox
 
     void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
     {
-        //mvp.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        //mvp.view = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        //mvp.projection = glm::perspective(glm::radians(45.0f), (float)swap_chain.extent.width / (float)swap_chain.extent.height, 0.1f, 10.0f);
-
-        //mvp.projection[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
-
-        //memcpy(uniform_buffers_mapped[current_image], &mvp, sizeof(mvp));
         memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &model_view_projection, sizeof(model_view_projection));
     }
 
@@ -128,6 +121,57 @@ namespace vulvox
     float Vulkan_Renderer::get_aspect_ratio() const
     {
         return (float)width / (float)height;
+    }
+
+    void Vulkan_Renderer::load_model(const std::string& name, const std::filesystem::path& path)
+    {
+        if (models.contains(name))
+        {
+            std::cout << "Attempted to load model " << name << " but a model with the same name was already loaded. Path was: " << path << std::endl;
+            return;
+        }
+
+        auto [index, succeeded] = models.try_emplace(name, path);
+
+        if (!succeeded)
+        {
+            std::string error_string = "Failed to load model " + name + " with path: " + path.string();
+            throw std::runtime_error(error_string);
+        }
+    }
+
+    void Vulkan_Renderer::load_texture(const std::string& name, const std::filesystem::path& path)
+    {
+        if (textures.contains(name))
+        {
+            std::cout << "Attempted to load texture " << name << " but a texture with the same name was already loaded. Path was: " << path << std::endl;
+            return;
+        }
+
+        auto [index, succeeded] = textures.try_emplace(name, create_texture_image(path));
+
+        if (!succeeded)
+        {
+            std::string error_string = "Failed to load texture " + name + " with path: " + path.string();
+            throw std::runtime_error(error_string);
+        }
+    }
+
+    void Vulkan_Renderer::load_texture_array(const std::string& name, const std::filesystem::path& path)
+    {
+        //if (texture_arrays.contains(name))
+        //{
+        //    std::cout << "Attempted to load texture array " << name << " but a texture array with the same name was already loaded. Path was: " << path << std::endl;
+        //    return;
+        //}
+
+        //auto [index, succeeded] = texture_arrays.insert({ name, Image(path) });
+
+        //if (!succeeded)
+        //{
+        //    std::string error_string = "Failed to load texture array " + name + " with path: " + path.string();
+        //    throw std::runtime_error(error_string);
+        //}
     }
 
     void Vulkan_Renderer::init_window(uint32_t width, uint32_t height)
@@ -168,13 +212,7 @@ namespace vulvox
         create_command_pool();
         create_depth_resources();
         create_framebuffers();
-        create_texture_image();
-        create_texture_image_view();
-        create_texture_sampler();
-
-        konata_model = Model(MODEL_PATH);
-
-        instance_konata.model = Model(MODEL_PATH);
+        //create_texture_image();
 
         create_vertex_buffer();
         create_index_buffer();
@@ -363,14 +401,20 @@ namespace vulvox
     void Vulkan_Renderer::create_graphics_pipeline()
     {
 
+        //Define push constants, the model matrix for single rendering is updated using push constants
+        VkPushConstantRange push_constant_range{};
+        push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        push_constant_range.offset = 0;
+        push_constant_range.size = sizeof(glm::mat4);
+
         //Define global variables (like a MVP matrix)
         //These are defined in a seperate pipeline layout
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipeline_layout_info.setLayoutCount = 1; //Amount of descriptor set layout (uniform buffer layout)
         pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
-        pipeline_layout_info.pushConstantRangeCount = 0; //Optional small uniform data
-        pipeline_layout_info.pPushConstantRanges = nullptr;
+        pipeline_layout_info.pushConstantRangeCount = 1; //Small uniform data, used for the model matrix
+        pipeline_layout_info.pPushConstantRanges = &push_constant_range;
 
         if (vkCreatePipelineLayout(vulkan_instance.device, &pipeline_layout_info, nullptr, &pipeline_layout) != VK_SUCCESS)
         {
@@ -378,11 +422,11 @@ namespace vulvox
         }
 
         //Load compiled SPIR-V shader files 
-        std::filesystem::path vert_shader_filepath("shaders/vert.spv");
-        std::filesystem::path frag_shader_filepath("shaders/frag.spv");
+        std::filesystem::path vert_shader_filepath("../shaders/vert.spv");
+        std::filesystem::path frag_shader_filepath("../shaders/frag.spv");
 
-        std::filesystem::path instance_vert_shader_filepath("shaders/instance_vert.spv");
-        std::filesystem::path instance_frag_shader_filepath("shaders/instance_frag.spv");
+        std::filesystem::path instance_vert_shader_filepath("../shaders/instance_vert.spv");
+        std::filesystem::path instance_frag_shader_filepath("../shaders/instance_frag.spv");
 
         Vulkan_Shader vert_shader{ vulkan_instance.device, vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
         Vulkan_Shader frag_shader{ vulkan_instance.device, frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
@@ -599,6 +643,7 @@ namespace vulvox
 
     /// <summary>
     /// Creates the framebuffers that can be used as a draw target in the renderpass
+    /// e.g. depth and swap chain images
     /// </summary>
     void Vulkan_Renderer::create_framebuffers()
     {
@@ -670,7 +715,8 @@ namespace vulvox
         //Create staging buffer that transfers data between the host and device
         Buffer staging_buffer;
         staging_buffer.create(vulkan_instance, buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
         memcpy(staging_buffer.allocation_info.pMappedData, konata_model.get_vertices_ptr(), (size_t)buffer_size);
 
@@ -715,7 +761,7 @@ namespace vulvox
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-            memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_vertices_ptr(), (size_t)vertex_buffer_size);
+            memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_vertices_ptr(), vertex_buffer_size);
 
             //Create vertex buffer as device only buffer
             instance_vertex_buffer.create(vulkan_instance, vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
@@ -734,7 +780,7 @@ namespace vulvox
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-            memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_indices_ptr(), (size_t)index_buffer_size);
+            memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_indices_ptr(), index_buffer_size);
 
             //Create index buffer as device only buffer
             instance_index_buffer.create(vulkan_instance, index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0);
@@ -803,12 +849,10 @@ namespace vulvox
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
+            //Also maps pointer to memory so we can write to the buffer, this pointer is persistant throughout the applications lifetime.
             uniform_buffers[i].create(vulkan_instance, buffer_size,
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-            ////Map pointer to memory so we can write to the buffer, this pointer is persistant throughout the applications lifetime
-            //vkMapMemory(vulkan_instance.device, uniform_buffers[i].device_memory, 0, buffer_size, 0, &uniform_buffers_mapped[i]);
         }
     }
 
@@ -1008,15 +1052,14 @@ namespace vulvox
         end_single_time_commands(command_buffer);
     }
 
-    //TODO Copy to image class?
-    void Vulkan_Renderer::create_texture_image()
+    Image Vulkan_Renderer::create_texture_image(const std::filesystem::path& texture_path)
     {
         int texture_width;
         int texture_height;
         int texture_channels;
 
         //Load texture image, force alpha channel
-        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texture_width, &texture_height, &texture_channels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(texture_path.string().c_str(), &texture_width, &texture_height, &texture_channels, STBI_rgb_alpha);
         VkDeviceSize image_size = texture_width * texture_height * 4;
 
         if (!pixels)
@@ -1030,11 +1073,12 @@ namespace vulvox
             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
         //Copy the texture data into the staging buffer
-        memcpy(staging_buffer.allocation_info.pMappedData, pixels, (size_t)image_size);
+        memcpy(staging_buffer.allocation_info.pMappedData, pixels, image_size);
 
         //Image in staging buffer, we can free the image data
         stbi_image_free(pixels);
 
+        Image texture_image;
         texture_image.create_image(&vulkan_instance, texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, VMA_MEMORY_USAGE_AUTO);
 
         //Change layout of target image memory to be optimal for writing destination
@@ -1059,17 +1103,11 @@ namespace vulvox
         }
 
         staging_buffer.destroy(vulkan_instance.allocator);
-    }
 
-    void Vulkan_Renderer::create_texture_image_view()
-    {
-        //texture_image_view = create_image_view(vulkan_instance.device, texture_image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
         texture_image.create_image_view();
-    }
-
-    void Vulkan_Renderer::create_texture_sampler()
-    {
         texture_image.create_texture_sampler();
+
+        return texture_image;
     }
 
     void Vulkan_Renderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
@@ -1168,6 +1206,11 @@ namespace vulvox
 
         //Set the uniform buffers
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
+
+        single_konata_matrix = glm::rotate(single_konata_matrix, glm::radians(1.f), glm::vec3(0, 1, 0));
+
+        //Set the push constants (model matrix)
+        vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &single_konata_matrix);
 
         //Bind to graphics pipeline: The shaders and configuration used to the render the object
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);

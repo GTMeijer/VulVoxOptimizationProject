@@ -60,6 +60,3 @@
 #include "vulkan_buffer.h"
 #include "model.h"
 #include "vulkan_shader.h"
-
-const std::string MODEL_PATH = "models/konata.obj";
-const std::string TEXTURE_PATH = "textures/konata_texture.png";
