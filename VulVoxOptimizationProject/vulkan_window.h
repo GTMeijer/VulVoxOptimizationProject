@@ -22,6 +22,10 @@ namespace vulvox
         void draw_frame();
         void cleanup();
 
+        /// <summary>
+        /// Checks if a close command was given to the window, indicating the program should shutdown.
+        /// </summary>
+        /// <returns></returns>
         bool should_close() const;
 
         void set_camera(const MVP& camera_matrix);
@@ -32,7 +36,6 @@ namespace vulvox
 
         bool framebuffer_resized = false;
 
-
     private:
 
         bool is_initialized = false;
@@ -40,8 +43,6 @@ namespace vulvox
 
         void init_window(uint32_t width, uint32_t height);
         void init_vulkan();
-
-        void main_loop();
 
         void update_uniform_buffer(uint32_t current_image);
 

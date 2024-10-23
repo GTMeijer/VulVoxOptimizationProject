@@ -3,21 +3,10 @@
 
 namespace vulvox
 {
-    //TODO: Probably do some lambda stuff here?
-    void Vulkan_Renderer::main_loop()
-    {
-        while (!glfwWindowShouldClose(window))
-        {
-            glfwPollEvents();
-            draw_frame();
-        }
-    }
-
     bool Vulkan_Renderer::should_close() const
     {
         return glfwWindowShouldClose(window);
     }
-
 
     void Vulkan_Renderer::draw_frame()
     {
@@ -38,11 +27,11 @@ namespace vulvox
             throw std::runtime_error("Failed to acquire swap chain image!");
         }
 
-        //Update global variables (camera etc.)
-        update_uniform_buffer(current_frame);
-
         //Reset fence *after* confirming the swapchain is valid (prevents deadlock)
         vkResetFences(vulkan_instance.device, 1, &in_flight_fences[current_frame]);
+
+        //Update global variables (camera etc.)
+        update_uniform_buffer(current_frame);
 
         //Start recording a new command buffer for rendering
         vkResetCommandBuffer(command_buffers[current_frame], 0); //Remove previous commands and free memory
@@ -1115,7 +1104,6 @@ namespace vulvox
 
     void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
     {
-
         //Describe a new render pass targeting the given image index in the swapchain
         VkRenderPassBeginInfo render_pass_begin_info{};
         render_pass_begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
