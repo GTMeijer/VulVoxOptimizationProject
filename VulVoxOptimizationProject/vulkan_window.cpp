@@ -34,8 +34,8 @@ namespace vulvox
         update_uniform_buffer(current_frame);
 
         //Start recording a new command buffer for rendering
-        vkResetCommandBuffer(command_buffers[current_frame], 0); //Remove previous commands and free memory
-        record_command_buffer(command_buffers[current_frame], image_index);
+        VkCommandBuffer command_buffer = command_pool.reset_command_buffer(current_frame);
+        record_command_buffer(command_buffer, image_index);
 
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -54,7 +54,7 @@ namespace vulvox
 
         //Link command buffer
         submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &command_buffers[current_frame];
+        submit_info.pCommandBuffers = &command_buffer;
 
         //Submit the command buffer so the GPU starts executing it
         if (vkQueueSubmit(vulkan_instance.graphics_queue, 1, &submit_info, in_flight_fences[current_frame]) != VK_SUCCESS)
@@ -131,7 +131,7 @@ namespace vulvox
             return;
         }
 
-        auto [index, succeeded] = models.try_emplace(name, path);
+        auto [index, succeeded] = models.try_emplace(name, &vulkan_instance, command_pool, path);
 
         if (!succeeded)
         {
@@ -209,18 +209,14 @@ namespace vulvox
         create_render_pass();
         create_descriptor_set_layout();
         create_graphics_pipeline();
-        create_command_pool();
+        command_pool = Vulkan_Command_Pool(&vulkan_instance, MAX_FRAMES_IN_FLIGHT);
         create_depth_resources();
         create_framebuffers();
-        //create_texture_image();
 
-        create_vertex_buffer();
-        create_index_buffer();
         create_uniform_buffers();
         create_instance_buffers();
         create_descriptor_pool();
         create_descriptor_sets();
-        create_command_buffer();
         create_sync_objects();
 
         std::cout << "Vulkan initialized." << std::endl;
@@ -250,18 +246,27 @@ namespace vulvox
         //Descriptor sets will be destroyed with the pool
         vkDestroyDescriptorPool(vulkan_instance.device, descriptor_pool, nullptr);
 
+
         //Texture cleanup
-        texture_image.destroy();
+        for (auto& [name, texture] : textures)
+        {
+            texture.destroy();
+        }
+
+        textures.clear();
 
         //Cleanup descriptor set layout and buffers
         vkDestroyDescriptorSetLayout(vulkan_instance.device, descriptor_set_layout, nullptr);
 
-        index_buffer.destroy(vulkan_instance.allocator);
-        vertex_buffer.destroy(vulkan_instance.allocator);
+        //Clear all the models and their (vertex & index) buffers
+        for (auto& [name, model] : models)
+        {
+            model.destroy();
+        }
+
+        models.clear();
 
         //Destroy instance buffers
-        instance_vertex_buffer.destroy(vulkan_instance.allocator);
-        instance_index_buffer.destroy(vulkan_instance.allocator);
         instance_data_buffer.destroy(vulkan_instance.allocator);
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -271,8 +276,7 @@ namespace vulvox
             vkDestroyFence(vulkan_instance.device, in_flight_fences.at(i), nullptr);
         }
 
-        //Also destroys the command buffers
-        vkDestroyCommandPool(vulkan_instance.device, command_pool, nullptr);
+        command_pool.destroy();
 
         vulkan_instance.cleanup_allocator();
         vulkan_instance.cleanup_device();
@@ -282,6 +286,30 @@ namespace vulvox
         glfwDestroyWindow(window);
 
         glfwTerminate();
+    }
+
+    void Vulkan_Renderer::start_draw()
+    {
+    }
+
+    void Vulkan_Renderer::end_draw()
+    {
+    }
+
+    void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
+    {
+    }
+
+    void Vulkan_Renderer::draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix)
+    {
+    }
+
+    void Vulkan_Renderer::draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
+    {
+    }
+
+    void Vulkan_Renderer::draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices)
+    {
     }
 
     void Vulkan_Renderer::create_render_pass()
@@ -670,24 +698,7 @@ namespace vulvox
         }
     }
 
-    /// <summary>
-    /// Creates the command pool that manages the memory that stores the buffers
-    /// </summary>
-    void Vulkan_Renderer::create_command_pool()
-    {
-        Queue_Family_Indices queue_family_indices = vulkan_instance.get_queue_families(vulkan_instance.surface);
 
-        VkCommandPoolCreateInfo pool_info{};
-        pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        pool_info.pNext = nullptr;
-        pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
-
-        if (vkCreateCommandPool(vulkan_instance.device, &pool_info, nullptr, &command_pool) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to create command pool!");
-        }
-    }
 
     void Vulkan_Renderer::create_depth_resources()
     {
@@ -705,93 +716,8 @@ namespace vulvox
         depth_image.create_image_view();
     }
 
-    /// <summary>
-    /// Creates the memory buffer containing our vertex data
-    /// </summary>
-    void Vulkan_Renderer::create_vertex_buffer()
-    {
-        VkDeviceSize buffer_size = konata_model.get_vertices_size();
-
-        //Create staging buffer that transfers data between the host and device
-        Buffer staging_buffer;
-        staging_buffer.create(vulkan_instance, buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-        memcpy(staging_buffer.allocation_info.pMappedData, konata_model.get_vertices_ptr(), (size_t)buffer_size);
-
-        //Create vertex buffer as device only buffer
-        vertex_buffer.create(vulkan_instance, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
-
-        //Copy data from host to device
-        copy_buffer(staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
-
-        //Data on device, cleanup temp buffers
-        staging_buffer.destroy(vulkan_instance.allocator);
-    }
-
-    void Vulkan_Renderer::create_index_buffer()
-    {
-        VkDeviceSize buffer_size = konata_model.get_indices_size();
-        Buffer staging_buffer;
-        staging_buffer.create(vulkan_instance, buffer_size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-        memcpy(staging_buffer.allocation_info.pMappedData, konata_model.get_indices_ptr(), (size_t)buffer_size);
-
-        //Create index buffer as device only buffer
-        index_buffer.create(vulkan_instance, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0);
-
-        //Copy data from host to device
-        copy_buffer(staging_buffer.buffer, index_buffer.buffer, buffer_size);
-
-        //Data on device, cleanup temp buffers
-        staging_buffer.destroy(vulkan_instance.allocator);
-    }
-
     void Vulkan_Renderer::create_instance_buffers()
     {
-        {
-            ///Instance vertex buffer
-            VkDeviceSize vertex_buffer_size = instance_konata.model.get_vertices_size();
-
-            //Create staging buffer that transfers data between the host and device
-            Buffer staging_buffer;
-            staging_buffer.create(vulkan_instance, vertex_buffer_size,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-            memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_vertices_ptr(), vertex_buffer_size);
-
-            //Create vertex buffer as device only buffer
-            instance_vertex_buffer.create(vulkan_instance, vertex_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
-
-            //Copy data from host to device
-            copy_buffer(staging_buffer.buffer, instance_vertex_buffer.buffer, vertex_buffer_size);
-
-            //Data on device, cleanup temp buffers
-            staging_buffer.destroy(vulkan_instance.allocator);
-        }
-        {
-            ///Instance index buffer
-            VkDeviceSize index_buffer_size = instance_konata.model.get_indices_size();
-            Buffer staging_buffer;
-            staging_buffer.create(vulkan_instance, index_buffer_size,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-            memcpy(staging_buffer.allocation_info.pMappedData, instance_konata.model.get_indices_ptr(), index_buffer_size);
-
-            //Create index buffer as device only buffer
-            instance_index_buffer.create(vulkan_instance, index_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0);
-
-            //Copy data from host to device
-            copy_buffer(staging_buffer.buffer, instance_index_buffer.buffer, index_buffer_size);
-
-            //Data on device, cleanup temp buffers
-            staging_buffer.destroy(vulkan_instance.allocator);
-        }
-
         {
             ///Instance data buffer
             const int instance_count = 10;
@@ -833,7 +759,7 @@ namespace vulvox
             instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
 
             //Copy data from host to device
-            copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, instance_data_buffer_size);
+            command_pool.copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, instance_data_buffer_size);
 
             //Data on device, cleanup temp buffers
             staging_buffer.destroy(vulkan_instance.allocator);
@@ -870,7 +796,7 @@ namespace vulvox
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
         pool_info.pPoolSizes = pool_sizes.data();
-        pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 2; // Two for each descriptor set in Descriptor_Sets
+        pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 256; // Just allocate a bunch so we can load multiple models, can make dynamic later.
         pool_info.flags = 0;
 
         if (vkCreateDescriptorPool(vulkan_instance.device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
@@ -880,6 +806,7 @@ namespace vulvox
     }
 
     //TODO: Split this up into dynamic
+    //Map with descriptor per model
     void Vulkan_Renderer::create_descriptor_sets()
     {
         std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
@@ -897,7 +824,7 @@ namespace vulvox
             throw std::runtime_error("Failed to allocate descriptor sets!");
         }
 
-        //Describe the data layout inside the buffers we want to write
+        //Describe the data layout of the uniform buffers and image sampler
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             VkDescriptorBufferInfo buffer_info{};
@@ -907,8 +834,8 @@ namespace vulvox
 
             VkDescriptorImageInfo image_info{};
             image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            image_info.imageView = texture_image.image_view;
-            image_info.sampler = texture_image.sampler;
+            image_info.imageView = textures["Konata"].image_view;
+            image_info.sampler = textures["Konata"].sampler;
 
             //Tri shaders
             std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
@@ -959,8 +886,8 @@ namespace vulvox
             //image_info.imageView = instance_konata.texture.image_view;
             //image_info.sampler = instance_konata.texture.sampler;
 
-            image_info.imageView = texture_image.image_view;
-            image_info.sampler = texture_image.sampler;
+            image_info.imageView = textures["Konata"].image_view;
+            image_info.sampler = textures["Konata"].sampler;
 
 
             std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
@@ -990,23 +917,6 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::create_command_buffer()
-    {
-        command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
-
-        VkCommandBufferAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        alloc_info.pNext = nullptr;
-        alloc_info.commandPool = command_pool;
-        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; //Directly submits to command queue (secondary can be used by primary)
-        alloc_info.commandBufferCount = (uint32_t)command_buffers.size(); //Double buffer for concurrent frame processing
-
-        if (vkAllocateCommandBuffers(vulkan_instance.device, &alloc_info, command_buffers.data()) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to allocate command buffers!");
-        }
-    }
-
     void Vulkan_Renderer::create_sync_objects()
     {
         image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1031,26 +941,7 @@ namespace vulvox
         }
     }
 
-    /// <summary>
-    /// Creates a temporary command buffer that transfers data between scr and dst buffers, executed immediately
-    /// </summary>
-    /// <param name="src_buffer"></param>
-    /// <param name="dst_buffer"></param>
-    /// <param name="size"></param>
-    void Vulkan_Renderer::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size)
-    {
-        VkCommandBuffer command_buffer = begin_single_time_commands();
 
-        //Record copy
-        VkBufferCopy copy_region{};
-        copy_region.srcOffset = 0; // Optional
-        copy_region.dstOffset = 0; // Optional
-        copy_region.size = size;
-
-        vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
-
-        end_single_time_commands(command_buffer);
-    }
 
     Image Vulkan_Renderer::create_texture_image(const std::filesystem::path& texture_path)
     {
@@ -1083,11 +974,11 @@ namespace vulvox
 
         //Change layout of target image memory to be optimal for writing destination
         {
-            VkCommandBuffer command_buffer = begin_single_time_commands();
+            VkCommandBuffer command_buffer = command_pool.begin_single_time_commands();
 
             texture_image.transition_image_layout(command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-            end_single_time_commands(command_buffer);
+            command_pool.end_single_time_commands(command_buffer);
         }
 
         //Transfer the image data from the staging buffer to the image memory
@@ -1095,11 +986,11 @@ namespace vulvox
 
         //Change layout of image memory to be optimal for reading by a shader
         {
-            VkCommandBuffer command_buffer = begin_single_time_commands();
+            VkCommandBuffer command_buffer = command_pool.begin_single_time_commands();
 
             texture_image.transition_image_layout(command_buffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-            end_single_time_commands(command_buffer);
+            command_pool.end_single_time_commands(command_buffer);
         }
 
         staging_buffer.destroy(vulkan_instance.allocator);
@@ -1112,7 +1003,7 @@ namespace vulvox
 
     void Vulkan_Renderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
     {
-        VkCommandBuffer command_buffer = begin_single_time_commands();
+        VkCommandBuffer command_buffer = command_pool.begin_single_time_commands();
 
         VkBufferImageCopy region{};
         region.bufferOffset = 0; //Start of pixel values
@@ -1137,7 +1028,7 @@ namespace vulvox
             1,
             &region);
 
-        end_single_time_commands(command_buffer);
+        command_pool.end_single_time_commands(command_buffer);
     }
 
     void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
@@ -1194,15 +1085,20 @@ namespace vulvox
         vkCmdSetViewport(command_buffer, 0, 1, &viewport);
         vkCmdSetScissor(command_buffer, 0, 1, &scissor);
 
-        //Render the object
+        //Render the objects
+
+
+        //TODO: Split in single and instance. Each call has a single vertex buffer.
 
         //Set the vertex buffers
-        std::array<VkBuffer, 1>  vertex_buffers = { vertex_buffer.buffer };
+        std::vector<VkBuffer> vertex_buffers;
+        vertex_buffers.push_back(models["Konata"].vertex_buffer.buffer);
         std::array<VkDeviceSize, 1> offsets = { 0 };
-        vkCmdBindVertexBuffers(command_buffer, 0, static_cast<uint32_t>(vertex_buffers.size()), vertex_buffers.data(), offsets.data());
+        vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
 
         //Set the index buffers
-        vkCmdBindIndexBuffer(command_buffer, index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        std::vector<VkBuffer> index_buffers;
+        vkCmdBindIndexBuffer(command_buffer, models["Konata"].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
         //Set the uniform buffers
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
@@ -1216,21 +1112,21 @@ namespace vulvox
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);
 
         //Draw command, set vertex and instance counts (we're not using instancing) and indices
-        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(konata_model.indices.size()), 1, 0, 0, 0);
+        vkCmdDrawIndexed(command_buffer, models.at("Konata").index_count, 1, 0, 0, 0);
 
         ////Instanced Konatas
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
         //Binding point 0 - mesh vertex buffer
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, &instance_vertex_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(command_buffer, 0, 1, &models["Konata"].vertex_buffer.buffer, offsets.data());
         //Binding point 1 - instance data buffer
         vkCmdBindVertexBuffers(command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
         //Bind index buffer
-        vkCmdBindIndexBuffer(command_buffer, instance_index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(command_buffer, models["Konata"].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
         //Render instances
         int instance_count = 10;
-        vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(instance_konata.model.indices.size()), instance_count, 0, 0, 0);
+        vkCmdDrawIndexed(command_buffer, models.at("Konata").index_count, instance_count, 0, 0, 0);
         ////
 
         vkCmdEndRenderPass(command_buffer);
@@ -1240,7 +1136,6 @@ namespace vulvox
             throw std::runtime_error("Failed to record command buffer!");
         }
     }
-
 
     void Vulkan_Renderer::cleanup_swap_chain()
     {
@@ -1270,53 +1165,6 @@ namespace vulvox
 
         create_depth_resources(); //Depend on depth image
         create_framebuffers(); //Depend on image views
-    }
-
-    /// <summary>
-    /// Begins a single-use command buffer for short-lived operations.
-    /// Allocates a primary command buffer from the specified command pool, 
-    /// begins recording with the VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT flag, 
-    /// and returns the command buffer.
-    /// </summary>
-    /// <returns>
-    /// The allocated and ready-to-record VkCommandBuffer.
-    /// </returns>
-    VkCommandBuffer Vulkan_Renderer::begin_single_time_commands()
-    {
-
-        VkCommandBufferAllocateInfo allocate_info{};
-        allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocate_info.commandPool = command_pool;
-        allocate_info.commandBufferCount = 1;
-
-        VkCommandBuffer command_buffer;
-        vkAllocateCommandBuffers(vulkan_instance.device, &allocate_info, &command_buffer);
-
-        //Start recording command buffer
-        VkCommandBufferBeginInfo begin_info{};
-        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT; //We only use this buffer once
-
-        vkBeginCommandBuffer(command_buffer, &begin_info);
-
-        return command_buffer;
-    }
-
-    void Vulkan_Renderer::end_single_time_commands(VkCommandBuffer command_buffer)
-    {
-        vkEndCommandBuffer(command_buffer);
-
-        //Execute copy command buffer instantly and wait until transfer is complete
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &command_buffer;
-
-        vkQueueSubmit(vulkan_instance.graphics_queue, 1, &submitInfo, nullptr);
-        vkQueueWaitIdle(vulkan_instance.graphics_queue);
-
-        vkFreeCommandBuffers(vulkan_instance.device, command_pool, 1, &command_buffer);
     }
 
     VkShaderModule Vulkan_Renderer::create_shader_module(const std::vector<char>& bytecode)

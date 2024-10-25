@@ -11,15 +11,7 @@ namespace vulvox
         void destroy(VmaAllocator allocator);
 
         VkBuffer buffer{ VK_NULL_HANDLE };
-        VmaAllocation allocation;
+        VmaAllocation allocation{ VK_NULL_HANDLE };
         VmaAllocationInfo allocation_info;
-    };
-
-    class InstanceBuffer
-    {
-    public:
-        Buffer buffer;
-        size_t size = 0;
-        VkDescriptorBufferInfo descriptor{ VK_NULL_HANDLE };
     };
 }

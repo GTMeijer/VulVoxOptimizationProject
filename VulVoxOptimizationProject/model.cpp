@@ -3,54 +3,33 @@
 
 namespace vulvox
 {
-    Model::Model(const std::filesystem::path& path_to_model)
+    Model::Model(Vulkan_Instance* instance, Vulkan_Command_Pool& command_pool, const std::filesystem::path& path_to_model)
+        : vulkan_instance(instance)
     {
-        load_model(path_to_model);
+        load_model(command_pool, path_to_model);
     }
 
-    uint64_t Model::get_vertices_size()
+    void Model::destroy()
     {
-        if (vertices.empty())
-        {
-            return 0;
-        }
-
-        return sizeof(vertices[0]) * vertices.size();
+        index_buffer.destroy(vulkan_instance->allocator);
+        vertex_buffer.destroy(vulkan_instance->allocator);
     }
 
-    uint64_t Model::get_indices_size()
-    {
-        if (indices.empty())
-        {
-            return 0;
-        }
-
-        return sizeof(indices[0]) * indices.size();
-    }
-
-    Vertex* Model::get_vertices_ptr()
-    {
-        return vertices.data();
-    }
-
-    uint32_t* Model::get_indices_ptr()
-    {
-        return indices.data();
-    }
-
-
-    void Model::load_model(const std::filesystem::path& path_to_model)
+    void Model::load_model(Vulkan_Command_Pool& command_pool, const std::filesystem::path& path_to_model)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
         std::vector<tinyobj::material_t> materials;
+
         std::string warn;
         std::string err;
-
         if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path_to_model.string().c_str()))
         {
             throw std::runtime_error(warn + err);
         }
+
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
 
         std::unordered_map<Vertex, uint32_t> unique_vertices{};
 
@@ -72,15 +51,12 @@ namespace vulvox
                 vertex.texture_coordinates =
                 {
                     attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1] //Flip the vertical axis for vulkan standard
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1] //Flip the vertical axis for vulkan standard coordinate system
                 };
 
                 vertex.color = { 1.0, 1.0, 1.0f };
 
-                vertices.push_back(vertex);
-                //indices.push_back(indices.size());
-
-                if (unique_vertices.count(vertex) == 0)
+                if (!unique_vertices.contains(vertex))
                 {
                     unique_vertices[vertex] = static_cast<uint32_t>(vertices.size());
                     vertices.push_back(vertex);
@@ -90,6 +66,55 @@ namespace vulvox
             }
         }
 
-        std::cout << "Model loaded containing " << vertices.size() << " vertices." << std::endl;
+        vertex_buffer_size = sizeof(vertices[0]) * vertices.size();
+        index_buffer_size = sizeof(indices[0]) * indices.size();
+
+        vertex_count = static_cast<uint32_t>(vertices.size());
+        index_count = static_cast<uint32_t>(indices.size());
+
+        create_vertex_buffer(command_pool, vertices);
+        create_index_buffer(command_pool, indices);
+
+        std::cout << "Model loaded containing " << vertices.size() << " vertices and " << indices.size() << " indices." << std::endl;
+    }
+
+    void Model::create_vertex_buffer(Vulkan_Command_Pool& command_pool, const std::vector<Vertex>& vertices)
+    {
+        VkDeviceSize buffer_size = vertices.size();
+
+        //Create staging buffer that transfers data between the host and device
+        Buffer staging_buffer;
+        staging_buffer.create(*vulkan_instance, buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+        memcpy(staging_buffer.allocation_info.pMappedData, vertices.data(), buffer_size);
+
+        //Create vertex buffer as device only buffer
+        vertex_buffer.create(*vulkan_instance, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
+
+        //Copy data from host to device
+        command_pool.copy_buffer(staging_buffer.buffer, vertex_buffer.buffer, buffer_size);
+
+        //Data on device, cleanup temp buffers
+        staging_buffer.destroy(vulkan_instance->allocator);
+    }
+
+    void Model::create_index_buffer(Vulkan_Command_Pool& command_pool, const std::vector<uint32_t>& indices)
+    {
+        VkDeviceSize buffer_size = indices.size();
+        Buffer staging_buffer;
+        staging_buffer.create(*vulkan_instance, buffer_size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+        memcpy(staging_buffer.allocation_info.pMappedData, indices.data(), buffer_size);
+
+        //Create index buffer as device only buffer
+        index_buffer.create(*vulkan_instance, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 0);
+
+        //Copy data from host to device
+        command_pool.copy_buffer(staging_buffer.buffer, index_buffer.buffer, buffer_size);
+
+        //Data on device, cleanup temp buffers
+        staging_buffer.destroy(vulkan_instance->allocator);
     }
 }

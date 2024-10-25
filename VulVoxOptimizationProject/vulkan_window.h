@@ -22,6 +22,14 @@ namespace vulvox
         void draw_frame();
         void cleanup();
 
+        void start_draw();
+        void end_draw();
+
+        void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
+        void draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix);
+        void draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices);
+        void draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices);
+
         /// <summary>
         /// Checks if a close command was given to the window, indicating the program should shutdown.
         /// </summary>
@@ -40,6 +48,11 @@ namespace vulvox
         void load_texture(const std::string& name, const std::filesystem::path& path);
         void load_texture_array(const std::string& name, const std::filesystem::path& path);
 
+        void unload_model(const std::string& name);
+        void unload_texture(const std::string& name);
+        void unload_texture_array(const std::string& name);
+
+
     private:
 
         bool is_initialized = false;
@@ -57,13 +70,10 @@ namespace vulvox
         void create_render_pass();
         void create_graphics_pipeline();
         void create_framebuffers();
-        void create_command_pool();
 
         //Depth test setup functions
         void create_depth_resources(); //Depth buffer resources
 
-        void create_vertex_buffer();
-        void create_index_buffer();
         void create_instance_buffers();
         void create_uniform_buffers();
 
@@ -71,21 +81,14 @@ namespace vulvox
         void create_descriptor_set_layout(); //Describes uniform buffers and image samplers
         void create_descriptor_sets();
 
-        void create_command_buffer();
         void create_sync_objects();
 
         void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
-
-        void copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size);
 
         Image create_texture_image(const std::filesystem::path& texture_path);
 
         //Image creation help functions
         void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
-
-        VkCommandBuffer begin_single_time_commands();
-        void end_single_time_commands(VkCommandBuffer command_buffer);
 
         VkShaderModule create_shader_module(const std::vector<char>& bytecode);
 
@@ -101,8 +104,7 @@ namespace vulvox
         Vulkan_Swap_Chain swap_chain;
 
         //Command pool and the allocated command buffers that store the commands send to the GPU
-        VkCommandPool command_pool;
-        std::vector<VkCommandBuffer> command_buffers;
+        Vulkan_Command_Pool command_pool;
 
         //Semaphores and fences to synchronize the gpu and host operations
         std::vector<VkSemaphore> image_available_semaphores;
@@ -140,30 +142,19 @@ namespace vulvox
         //Image used for depth testing
         Image depth_image;
 
-        //Texture and mesh for Konata model
-        Image texture_image;
-        Model konata_model;
-
-        //Vertex and index buffers holding the mesh data
-        Buffer vertex_buffer;
-        Buffer index_buffer;
-
         glm::mat4 single_konata_matrix = glm::mat4(1.0f);
 
         struct Instanced_Model
         {
             Image texture;
-            Model model;
         };
 
         Instanced_Model instance_konata;
 
         std::vector<Instance_Data> konata_instances_data;
 
-        Buffer instance_vertex_buffer;
-        Buffer instance_index_buffer;
         Buffer instance_data_buffer;
-        ;
+
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;
         std::unordered_map<std::string, Image> texture_arrays;
