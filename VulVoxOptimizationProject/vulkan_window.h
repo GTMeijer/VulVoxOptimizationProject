@@ -19,7 +19,6 @@ namespace vulvox
             is_initialized = true;
         }
 
-        void draw_frame();
         void cleanup();
 
         void start_draw();

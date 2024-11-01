@@ -8,92 +8,6 @@ namespace vulvox
         return glfwWindowShouldClose(window);
     }
 
-    void Vulkan_Renderer::draw_frame()
-    {
-        vkWaitForFences(vulkan_instance.device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
-
-        //Ask the swapchain for a render image to target
-        uint32_t image_index;
-        VkResult result = vkAcquireNextImageKHR(vulkan_instance.device, swap_chain.swap_chain, UINT64_MAX, image_available_semaphores[current_frame], nullptr, &image_index);
-
-        if (result == VK_ERROR_OUT_OF_DATE_KHR)
-        {
-            //Swap chain in not compatible with the current window size, recreate
-            recreate_swap_chain();
-            return;
-        }
-        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-        {
-            throw std::runtime_error("Failed to acquire swap chain image!");
-        }
-
-        //Reset fence *after* confirming the swapchain is valid (prevents deadlock)
-        vkResetFences(vulkan_instance.device, 1, &in_flight_fences[current_frame]);
-
-        //Update global variables (camera etc.)
-        update_uniform_buffer(current_frame);
-
-        //Start recording a new command buffer for rendering
-        VkCommandBuffer command_buffer = command_pool.reset_command_buffer(current_frame);
-        record_command_buffer(command_buffer, image_index);
-
-        VkSubmitInfo submit_info{};
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-        //Which semaphore to wait for before execution and at which stage
-        std::array<VkSemaphore, 1> wait_semaphores = { image_available_semaphores[current_frame] };
-        std::array<VkPipelineStageFlags, 1> wait_stages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
-        submit_info.pWaitSemaphores = wait_semaphores.data();
-        submit_info.pWaitDstStageMask = wait_stages.data();
-
-        //Which semaphore to signal when the command buffer is done
-        std::array<VkSemaphore, 1> signal_semaphores = { render_finished_semaphores[current_frame] };
-        submit_info.signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size());
-        submit_info.pSignalSemaphores = signal_semaphores.data();
-
-        //Link command buffer
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &command_buffer;
-
-        //Submit the command buffer so the GPU starts executing it
-        if (vkQueueSubmit(vulkan_instance.graphics_queue, 1, &submit_info, in_flight_fences[current_frame]) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to submit draw command buffer!");
-        }
-
-        VkPresentInfoKHR present_info{};
-        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = signal_semaphores.data(); //Wait for semaphore before we can present
-
-        std::array<VkSwapchainKHR, 1> swap_chains = { swap_chain.swap_chain };
-        present_info.swapchainCount = static_cast<uint32_t>(swap_chains.size());
-        present_info.pSwapchains = swap_chains.data();
-        present_info.pImageIndices = &image_index;
-
-        //Dont need to collect the draw results because the present function returns them as well
-        present_info.pResults = nullptr;
-
-        //Present the result on screen
-        result = vkQueuePresentKHR(vulkan_instance.present_queue, &present_info);
-
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized)
-        {
-            framebuffer_resized = false;
-
-            //Swap chain in not compatible with the current window size, recreate
-            recreate_swap_chain();
-        }
-        else if (result != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to present swap chain image!");
-        }
-
-        //Rotate to next frame resources
-        current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
-    }
-
     void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
     {
         memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &model_view_projection, sizeof(model_view_projection));
@@ -290,10 +204,93 @@ namespace vulvox
 
     void Vulkan_Renderer::start_draw()
     {
+        vkWaitForFences(vulkan_instance.device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
+
+        //Ask the swapchain for a render image to target
+        uint32_t image_index;
+        VkResult result = vkAcquireNextImageKHR(vulkan_instance.device, swap_chain.swap_chain, UINT64_MAX, image_available_semaphores[current_frame], nullptr, &image_index);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            //Swap chain in not compatible with the current window size, recreate
+            recreate_swap_chain();
+            return;
+        }
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+        {
+            throw std::runtime_error("Failed to acquire swap chain image!");
+        }
+
+        //Reset fence *after* confirming the swapchain is valid (prevents deadlock)
+        vkResetFences(vulkan_instance.device, 1, &in_flight_fences[current_frame]);
+
+        //Update global variables (camera etc.)
+        update_uniform_buffer(current_frame);
+
+        //Start recording a new command buffer for rendering
+        VkCommandBuffer command_buffer = command_pool.reset_command_buffer(current_frame);
+
+        // This needs to be split into draw calls and start/end
+        record_command_buffer(command_buffer, image_index);
     }
 
     void Vulkan_Renderer::end_draw()
     {
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+        //Which semaphore to wait for before execution and at which stage
+        std::array<VkSemaphore, 1> wait_semaphores = { image_available_semaphores[current_frame] };
+        std::array<VkPipelineStageFlags, 1> wait_stages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        submit_info.waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size());
+        submit_info.pWaitSemaphores = wait_semaphores.data();
+        submit_info.pWaitDstStageMask = wait_stages.data();
+
+        //Which semaphore to signal when the command buffer is done
+        std::array<VkSemaphore, 1> signal_semaphores = { render_finished_semaphores[current_frame] };
+        submit_info.signalSemaphoreCount = static_cast<uint32_t>(signal_semaphores.size());
+        submit_info.pSignalSemaphores = signal_semaphores.data();
+
+        //Link command buffer
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
+
+        //Submit the command buffer so the GPU starts executing it
+        if (vkQueueSubmit(vulkan_instance.graphics_queue, 1, &submit_info, in_flight_fences[current_frame]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to submit draw command buffer!");
+        }
+
+        VkPresentInfoKHR present_info{};
+        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        present_info.waitSemaphoreCount = 1;
+        present_info.pWaitSemaphores = signal_semaphores.data(); //Wait for semaphore before we can present
+
+        std::array<VkSwapchainKHR, 1> swap_chains = { swap_chain.swap_chain };
+        present_info.swapchainCount = static_cast<uint32_t>(swap_chains.size());
+        present_info.pSwapchains = swap_chains.data();
+        present_info.pImageIndices = &image_index;
+
+        //Dont need to collect the draw results because the present function returns them as well
+        present_info.pResults = nullptr;
+
+        //Present the result on screen
+        result = vkQueuePresentKHR(vulkan_instance.present_queue, &present_info);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized)
+        {
+            framebuffer_resized = false;
+
+            //Swap chain in not compatible with the current window size, recreate
+            recreate_swap_chain();
+        }
+        else if (result != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to present swap chain image!");
+        }
+
+        //Rotate to next frame resources
+        current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
     }
 
     void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
@@ -428,7 +425,6 @@ namespace vulvox
 
     void Vulkan_Renderer::create_graphics_pipeline()
     {
-
         //Define push constants, the model matrix for single rendering is updated using push constants
         VkPushConstantRange push_constant_range{};
         push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -698,8 +694,6 @@ namespace vulvox
         }
     }
 
-
-
     void Vulkan_Renderer::create_depth_resources()
     {
         VkFormat depth_format = vulkan_instance.find_depth_format();
@@ -716,6 +710,8 @@ namespace vulvox
         depth_image.create_image_view();
     }
 
+    //TODO: This is the buffer that holds the instance data. Refactor this when rendering instanced models.
+    //TODO: This is not dynamic so take into account how many we max want to draw..
     void Vulkan_Renderer::create_instance_buffers()
     {
         {
@@ -782,6 +778,10 @@ namespace vulvox
         }
     }
 
+    /// <summary>
+    /// This function creates a descriptor pool that holds the descriptor sets.
+    /// Because this renderers usecase will not involve a lot of models we just create a single large pool.
+    /// </summary>
     void Vulkan_Renderer::create_descriptor_pool()
     {
         std::array<VkDescriptorPoolSize, 2> pool_sizes{};
@@ -840,6 +840,7 @@ namespace vulvox
             //Tri shaders
             std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
 
+            //TODO: Do we need to update this MVP uniform binding? It will never change..
             //Descriptor for the MVP uniform
             descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptor_writes[0].dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
@@ -851,6 +852,7 @@ namespace vulvox
             descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
             descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
 
+            //TODO: Split
             //Descriptor for the image sampler uniform
             descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptor_writes[1].dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
@@ -876,21 +878,12 @@ namespace vulvox
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
+            std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
+
             VkDescriptorBufferInfo buffer_info{};
             buffer_info.buffer = uniform_buffers[i].buffer;
             buffer_info.offset = 0;
             buffer_info.range = sizeof(MVP);
-
-            VkDescriptorImageInfo image_info{};
-            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            //image_info.imageView = instance_konata.texture.image_view;
-            //image_info.sampler = instance_konata.texture.sampler;
-
-            image_info.imageView = textures["Konata"].image_view;
-            image_info.sampler = textures["Konata"].sampler;
-
-
-            std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
 
             //Descriptor for the MVP uniform
             descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -902,6 +895,14 @@ namespace vulvox
             descriptor_writes[0].pBufferInfo = &buffer_info; //Data and layout of buffer
             descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
             descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
+
+            VkDescriptorImageInfo image_info{};
+            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            //image_info.imageView = instance_konata.texture.image_view;
+            //image_info.sampler = instance_konata.texture.sampler;
+
+            image_info.imageView = textures["Konata"].image_view;
+            image_info.sampler = textures["Konata"].sampler;
 
             //Descriptor for the image sampler uniform
             descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -916,32 +917,6 @@ namespace vulvox
             vkUpdateDescriptorSets(vulkan_instance.device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
         }
     }
-
-    void Vulkan_Renderer::create_sync_objects()
-    {
-        image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-        in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
-
-        VkSemaphoreCreateInfo semaphore_info{};
-        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-        VkFenceCreateInfo fence_info{};
-        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; //Start in signaled state for first frame
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            if (vkCreateSemaphore(vulkan_instance.device, &semaphore_info, nullptr, &image_available_semaphores[i]) != VK_SUCCESS ||
-                vkCreateSemaphore(vulkan_instance.device, &semaphore_info, nullptr, &render_finished_semaphores[i]) != VK_SUCCESS ||
-                vkCreateFence(vulkan_instance.device, &fence_info, nullptr, &in_flight_fences[i]) != VK_SUCCESS)
-            {
-                throw std::runtime_error("Failed to create semaphores!");
-            }
-        }
-    }
-
-
 
     Image Vulkan_Renderer::create_texture_image(const std::filesystem::path& texture_path)
     {
@@ -1031,6 +1006,30 @@ namespace vulvox
         command_pool.end_single_time_commands(command_buffer);
     }
 
+    void Vulkan_Renderer::create_sync_objects()
+    {
+        image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+
+        VkSemaphoreCreateInfo semaphore_info{};
+        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkFenceCreateInfo fence_info{};
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT; //Start in signaled state for first frame
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            if (vkCreateSemaphore(vulkan_instance.device, &semaphore_info, nullptr, &image_available_semaphores[i]) != VK_SUCCESS ||
+                vkCreateSemaphore(vulkan_instance.device, &semaphore_info, nullptr, &render_finished_semaphores[i]) != VK_SUCCESS ||
+                vkCreateFence(vulkan_instance.device, &fence_info, nullptr, &in_flight_fences[i]) != VK_SUCCESS)
+            {
+                throw std::runtime_error("Failed to create semaphores!");
+            }
+        }
+    }
+
     void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
     {
         //Describe a new render pass targeting the given image index in the swapchain
@@ -1089,6 +1088,7 @@ namespace vulvox
 
 
         //TODO: Split in single and instance. Each call has a single vertex buffer.
+        //TODO: Bind descriptor set per draw call (group by model?)
 
         //Set the vertex buffers
         std::vector<VkBuffer> vertex_buffers;

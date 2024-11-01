@@ -25,7 +25,8 @@ int main()
         scene.update(delta_time, renderer.get_window());
         scene.draw(renderer);
 
-        renderer.draw_frame();
+        renderer.start_draw();
+        renderer.end_draw();
     }
 
     renderer.cleanup();
