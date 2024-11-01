@@ -207,8 +207,7 @@ namespace vulvox
         vkWaitForFences(vulkan_instance.device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
 
         //Ask the swapchain for a render image to target
-        uint32_t image_index;
-        VkResult result = vkAcquireNextImageKHR(vulkan_instance.device, swap_chain.swap_chain, UINT64_MAX, image_available_semaphores[current_frame], nullptr, &image_index);
+        VkResult result = vkAcquireNextImageKHR(vulkan_instance.device, swap_chain.swap_chain, UINT64_MAX, image_available_semaphores[current_frame], nullptr, &current_image_index);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR)
         {
@@ -228,10 +227,10 @@ namespace vulvox
         update_uniform_buffer(current_frame);
 
         //Start recording a new command buffer for rendering
-        VkCommandBuffer command_buffer = command_pool.reset_command_buffer(current_frame);
+        current_command_buffer = command_pool.reset_command_buffer(current_frame);
 
         // This needs to be split into draw calls and start/end
-        record_command_buffer(command_buffer, image_index);
+        record_command_buffer(current_command_buffer, current_image_index);
     }
 
     void Vulkan_Renderer::end_draw()
@@ -253,7 +252,7 @@ namespace vulvox
 
         //Link command buffer
         submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &command_buffer;
+        submit_info.pCommandBuffers = &current_command_buffer;
 
         //Submit the command buffer so the GPU starts executing it
         if (vkQueueSubmit(vulkan_instance.graphics_queue, 1, &submit_info, in_flight_fences[current_frame]) != VK_SUCCESS)
@@ -269,13 +268,13 @@ namespace vulvox
         std::array<VkSwapchainKHR, 1> swap_chains = { swap_chain.swap_chain };
         present_info.swapchainCount = static_cast<uint32_t>(swap_chains.size());
         present_info.pSwapchains = swap_chains.data();
-        present_info.pImageIndices = &image_index;
+        present_info.pImageIndices = &current_image_index;
 
         //Dont need to collect the draw results because the present function returns them as well
         present_info.pResults = nullptr;
 
         //Present the result on screen
-        result = vkQueuePresentKHR(vulkan_instance.present_queue, &present_info);
+        VkResult result = vkQueuePresentKHR(vulkan_instance.present_queue, &present_info);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized)
         {

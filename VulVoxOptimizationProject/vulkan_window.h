@@ -105,6 +105,10 @@ namespace vulvox
         //Command pool and the allocated command buffers that store the commands send to the GPU
         Vulkan_Command_Pool command_pool;
 
+        //Draw state
+        VkCommandBuffer current_command_buffer;
+        uint32_t current_image_index;
+
         //Semaphores and fences to synchronize the gpu and host operations
         std::vector<VkSemaphore> image_available_semaphores;
         std::vector<VkSemaphore> render_finished_semaphores;
