@@ -229,12 +229,15 @@ namespace vulvox
         //Start recording a new command buffer for rendering
         current_command_buffer = command_pool.reset_command_buffer(current_frame);
 
-        // This needs to be split into draw calls and start/end
-        record_command_buffer(current_command_buffer, current_image_index);
+        // Start recording the command buffer and wait for draw calls
+        start_record_command_buffer();
     }
 
     void Vulkan_Renderer::end_draw()
     {
+        //Complete the command buffer before submitting it and presenting the image
+        end_record_command_buffer();
+
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -294,6 +297,31 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
     {
+        //TODO: Bind texture
+
+        //Set the vertex buffers
+        std::vector<VkBuffer> vertex_buffers;
+        vertex_buffers.push_back(models[model_name].vertex_buffer.buffer);
+        std::array<VkDeviceSize, 1> offsets = { 0 };
+        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
+
+        //Set the index buffers
+        std::vector<VkBuffer> index_buffers;
+        vkCmdBindIndexBuffer(current_command_buffer, models[model_name].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        //Set the uniform buffers
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
+
+        single_konata_matrix = glm::rotate(single_konata_matrix, glm::radians(1.f), glm::vec3(0, 1, 0));
+
+        //Set the push constants (model matrix)
+        vkCmdPushConstants(current_command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &single_konata_matrix);
+
+        //Bind to graphics pipeline: The shaders and configuration used to the render the object
+        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);
+
+        //Draw command, set vertex and instance counts (we're not using instancing) and indices
+        vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
     void Vulkan_Renderer::draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix)
@@ -302,6 +330,21 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
     {
+        std::array<VkDeviceSize, 1> offsets = { 0 };
+
+        ////Instanced Konatas
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
+        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
+        //Binding point 0 - mesh vertex buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models[model_name].vertex_buffer.buffer, offsets.data());
+        //Binding point 1 - instance data buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
+        //Bind index buffer
+        vkCmdBindIndexBuffer(current_command_buffer, models[model_name].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        //Render instances
+        int instance_count = 10;
+        vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
     void Vulkan_Renderer::draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices)
@@ -1029,7 +1072,7 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
+    void Vulkan_Renderer::start_record_command_buffer()
     {
         //Describe a new render pass targeting the given image index in the swapchain
         VkRenderPassBeginInfo render_pass_begin_info{};
@@ -1037,7 +1080,7 @@ namespace vulvox
 
         //attach this render pass to the swap chain image
         render_pass_begin_info.renderPass = render_pass;
-        render_pass_begin_info.framebuffer = swap_chain.framebuffers[image_index];
+        render_pass_begin_info.framebuffer = swap_chain.framebuffers[current_image_index];
 
         //Cover the whole swap chain image
         render_pass_begin_info.renderArea.offset = { 0,0 };
@@ -1070,71 +1113,45 @@ namespace vulvox
         begin_info.flags = 0;
         begin_info.pInheritanceInfo = nullptr;
 
-        if (vkBeginCommandBuffer(command_buffer, &begin_info) != VK_SUCCESS)
+        if (vkBeginCommandBuffer(current_command_buffer, &begin_info) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to begin recording command buffer!");
         }
 
 
         //VK_SUBPASS_CONTENTS_INLINE means we don't use secondary command buffers
-        vkCmdBeginRenderPass(command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBeginRenderPass(current_command_buffer, &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
 
-        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+        vkCmdSetViewport(current_command_buffer, 0, 1, &viewport);
+        vkCmdSetScissor(current_command_buffer, 0, 1, &scissor);
+    }
 
-        //Render the objects
+    void Vulkan_Renderer::end_record_command_buffer()
+    {
+        vkCmdEndRenderPass(current_command_buffer);
 
-
-        //TODO: Split in single and instance. Each call has a single vertex buffer.
-        //TODO: Bind descriptor set per draw call (group by model?)
-
-        //Set the vertex buffers
-        std::vector<VkBuffer> vertex_buffers;
-        vertex_buffers.push_back(models["Konata"].vertex_buffer.buffer);
-        std::array<VkDeviceSize, 1> offsets = { 0 };
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
-
-        //Set the index buffers
-        std::vector<VkBuffer> index_buffers;
-        vkCmdBindIndexBuffer(command_buffer, models["Konata"].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-        //Set the uniform buffers
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
-
-        single_konata_matrix = glm::rotate(single_konata_matrix, glm::radians(1.f), glm::vec3(0, 1, 0));
-
-        //Set the push constants (model matrix)
-        vkCmdPushConstants(command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &single_konata_matrix);
-
-        //Bind to graphics pipeline: The shaders and configuration used to the render the object
-        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);
-
-        //Draw command, set vertex and instance counts (we're not using instancing) and indices
-        vkCmdDrawIndexed(command_buffer, models.at("Konata").index_count, 1, 0, 0, 0);
-
-        ////Instanced Konatas
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
-        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
-        //Binding point 0 - mesh vertex buffer
-        vkCmdBindVertexBuffers(command_buffer, 0, 1, &models["Konata"].vertex_buffer.buffer, offsets.data());
-        //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
-        //Bind index buffer
-        vkCmdBindIndexBuffer(command_buffer, models["Konata"].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-        //Render instances
-        int instance_count = 10;
-        vkCmdDrawIndexed(command_buffer, models.at("Konata").index_count, instance_count, 0, 0, 0);
-        ////
-
-        vkCmdEndRenderPass(command_buffer);
-
-        if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS)
+        if (vkEndCommandBuffer(current_command_buffer) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to record command buffer!");
         }
     }
+
+    //void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
+    //{
+    //
+    //
+    //    //Render the objects
+    //
+    //
+    //    //TODO: Split in single and instance. Each call has a single vertex buffer.
+    //    //TODO: Bind descriptor set per draw call (group by model?)
+    //
+
+    //
+
+
+    //}
 
     void Vulkan_Renderer::cleanup_swap_chain()
     {

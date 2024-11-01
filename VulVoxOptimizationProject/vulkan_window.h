@@ -82,7 +82,8 @@ namespace vulvox
 
         void create_sync_objects();
 
-        void record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index);
+        void start_record_command_buffer();
+        void end_record_command_buffer();
 
         Image create_texture_image(const std::filesystem::path& texture_path);
 
