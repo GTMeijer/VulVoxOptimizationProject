@@ -11,5 +11,7 @@ private:
 
     vulvox::Vulkan_Renderer* renderer;
     Camera camera;
+
+    glm::mat4 konata_matrix;
 };
 

@@ -12,6 +12,8 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
     renderer.load_model("Konata", MODEL_PATH);
     renderer.load_texture("Konata", TEXTURE_PATH);
 
+    konata_matrix = glm::mat4{ 1.0f };
+
     //renderer.load_model("cube", CUBE_MODEL_PATH);
     //renderer.load_texture("cube", CUBE_TEXTURE_PATH);
 
@@ -35,12 +37,17 @@ void Scene::update(float delta_time)
 
 void Scene::draw()
 {
-    //glm::mat4 single_konata_matrix = glm::rotate(single_konata_matrix, glm::radians(1.f), glm::vec3(0, 1, 0));
 
-    glm::mat4 single_konata_matrix{ 1.0f };
+    for (size_t i = 0; i < 5; i++)
+    {
+        for (size_t j = 0; j < 5; j++)
+        {
+            glm::mat4 pos = glm::translate(konata_matrix, glm::vec3(i * 75.f, 0.0f, j * 75.f));
 
-    renderer->draw_model("Konata", "Konata", single_konata_matrix);
+            renderer->draw_model("Konata", "Konata", pos);
 
+        }
+    }
 
 }
 
