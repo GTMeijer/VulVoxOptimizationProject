@@ -186,7 +186,11 @@ namespace vulvox
         models.clear();
 
         //Destroy instance buffers
-        instance_data_buffer.destroy(vulkan_instance.allocator);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            instance_data_buffers[i].destroy(vulkan_instance.allocator);
+
+        }
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -347,7 +351,7 @@ namespace vulvox
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
 
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -780,7 +784,6 @@ namespace vulvox
         depth_image.create_image_view();
     }
 
-    //TODO: This is the buffer that holds the instance data. Refactor this when rendering instanced models.
     //TODO: This is not dynamic so take into account how many we max want to draw..
     void Vulkan_Renderer::create_instance_buffers()
     {
@@ -789,15 +792,21 @@ namespace vulvox
         //TODO: Make dynamic
         VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * instance_count;
 
-        //Create instance buffer as device only buffer
-        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        //Create instance buffers as device only buffers
+        instance_data_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            instance_data_buffers[i].create(vulkan_instance, instance_data_buffer_size,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        }
     }
 
     void Vulkan_Renderer::copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data)
     {
         size_t data_size = instance_data.size() * sizeof(instance_data[0]);
 
-        memcpy(instance_data_buffer.allocation_info.pMappedData, instance_data.data(), data_size);
+        memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, instance_data.data(), data_size);
     }
 
     void Vulkan_Renderer::create_uniform_buffers()

@@ -163,7 +163,7 @@ namespace vulvox
 
         std::vector<Instance_Data> konata_instances_data;
 
-        Buffer instance_data_buffer;
+        std::vector<Buffer> instance_data_buffers;
 
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;

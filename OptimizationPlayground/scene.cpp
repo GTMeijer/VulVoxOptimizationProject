@@ -17,6 +17,18 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
     renderer.load_model("cube", CUBE_MODEL_PATH);
     renderer.load_texture("cube", CUBE_TEXTURE_PATH);
 
+    konata_matrices.reserve(25);
+    for (size_t i = 0; i < 5; i++)
+    {
+        for (size_t j = 0; j < 5; j++)
+        {
+            vulvox::Instance_Data instance_data;
+            instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 75.f, 125.0f, j * 75.f));
+
+            konata_matrices.push_back(instance_data);
+        }
+    }
+
 }
 
 void Scene::update(float delta_time)
@@ -35,11 +47,14 @@ void Scene::update(float delta_time)
     camera.set_aspect_ratio(renderer->get_aspect_ratio());
     renderer->set_camera(camera.get_mvp());
 
+    for (auto& konata_matrix : konata_matrices)
+    {
+        konata_matrix.instance_model_matrix = glm::rotate(konata_matrix.instance_model_matrix, delta_time * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+    }
 }
 
 void Scene::draw()
 {
-
     for (size_t i = 0; i < 5; i++)
     {
         for (size_t j = 0; j < 5; j++)
@@ -47,22 +62,8 @@ void Scene::draw()
             glm::mat4 pos = glm::translate(konata_matrix, glm::vec3(i * 75.f, 0.0f, j * 75.f));
 
             renderer->draw_model("Konata", "Konata", pos);
-
-        }
-    }
-
-    std::vector<vulvox::Instance_Data> konata_matrices;
-    for (size_t i = 0; i < 5; i++)
-    {
-        for (size_t j = 0; j < 5; j++)
-        {
-            vulvox::Instance_Data instance_data;
-            instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 75.f, 125.0f, j * 75.f));
-
-            konata_matrices.push_back(instance_data);
         }
     }
 
     renderer->draw_instanced("Konata", "Konata", konata_matrices);
 }
-

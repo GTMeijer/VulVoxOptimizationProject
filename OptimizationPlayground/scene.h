@@ -13,5 +13,7 @@ private:
     Camera camera;
 
     glm::mat4 konata_matrix;
+
+    std::vector<vulvox::Instance_Data> konata_matrices;
 };
 
