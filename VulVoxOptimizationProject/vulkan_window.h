@@ -26,8 +26,8 @@ namespace vulvox
 
         void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
         void draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix);
-        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices);
-        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices);
+        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
+        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data, const std::vector<int>& texture_indices);
 
         /// <summary>
         /// Checks if a close command was given to the window, indicating the program should shutdown.
@@ -74,6 +74,7 @@ namespace vulvox
         void create_depth_resources(); //Depth buffer resources
 
         void create_instance_buffers();
+        void copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data);
         void create_uniform_buffers();
 
         void create_descriptor_pool();

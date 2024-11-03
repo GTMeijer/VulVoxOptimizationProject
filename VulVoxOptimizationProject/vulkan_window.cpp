@@ -303,16 +303,14 @@ namespace vulvox
     void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
     {
         //Set the vertex buffers
-        std::vector<VkBuffer> vertex_buffers;
-        vertex_buffers.push_back(models.at(model_name).vertex_buffer.buffer);
         std::array<VkDeviceSize, 1> offsets = { 0 };
-        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
 
         //Set the index buffers
         std::vector<VkBuffer> index_buffers;
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-        //Set the uniform buffers
+        //Bind the uniform buffers
         //Bind set 0, the MVP buffer
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
         //Bind set 1, the texture
@@ -330,31 +328,40 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix)
     {
+
     }
 
-    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
+    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
     {
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        //TODO: Bind texture
+        copy_to_instance_buffer(instance_data);
+
+        //Bind the uniform buffers
+        //Bind set 0, the MVP buffer
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
-        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
+        //Bind set 1, the texture
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_descriptor_sets.at(texture_name), 0, nullptr);
 
         //Binding point 0 - mesh vertex buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models[model_name].vertex_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
+
         //Binding point 1 - instance data buffer
         vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
 
         //Bind index buffer
-        vkCmdBindIndexBuffer(current_command_buffer, models[model_name].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
 
         //Render instances
-        uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
+        uint32_t instance_count = static_cast<uint32_t>(instance_data.size());
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices)
+    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data, const std::vector<int>& texture_indices)
     {
+
     }
 
     void Vulkan_Renderer::create_render_pass()
@@ -777,52 +784,31 @@ namespace vulvox
     //TODO: This is not dynamic so take into account how many we max want to draw..
     void Vulkan_Renderer::create_instance_buffers()
     {
-        {
-            ///Instance data buffer
-            const int instance_count = 10;
-            //konata_instances_data.resize(instance_count);
+        const int instance_count = 10;
 
-            float pos_x = 0.0f;
-            float pos_y = 0.0f;
+        //TODO: Make dynamic
+        VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * instance_count;
 
-            for (size_t i = 0; i < instance_count; i++)
-            {
-                Instance_Data instance_data;
-                instance_data.position = glm::vec3(pos_x, pos_y, 1.0f);
-                instance_data.rotation = glm::vec3(0, 0, 0);
-                instance_data.scale = 1.0f;
-                instance_data.texture_index = 0;
+        //Create instance buffer as device only buffer
+        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
+    }
 
-                konata_instances_data.push_back(instance_data);
+    void Vulkan_Renderer::copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data)
+    {
+        size_t data_size = instance_data.size() * sizeof(instance_data[0]);
 
-                if (pos_x >= 30.f)
-                {
-                    pos_x = 0.0f;
-                    pos_y += 10.0f;
-                }
-                else
-                {
-                    pos_x += 10.f;
-                }
-            }
+        Buffer staging_buffer;
+        staging_buffer.create(vulkan_instance, instance_data_buffer.allocation_info.size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
-            VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * konata_instances_data.size();
-            Buffer staging_buffer;
-            staging_buffer.create(vulkan_instance, instance_data_buffer_size,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        memcpy(staging_buffer.allocation_info.pMappedData, instance_data.data(), data_size);
 
-            memcpy(staging_buffer.allocation_info.pMappedData, konata_instances_data.data(), (size_t)instance_data_buffer_size);
+        //Copy data from host to device
+        command_pool.copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, data_size);
 
-            //Create instance buffer as device only buffer
-            instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
-
-            //Copy data from host to device
-            command_pool.copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, instance_data_buffer_size);
-
-            //Data on device, cleanup temp buffers
-            staging_buffer.destroy(vulkan_instance.allocator);
-        }
+        //Data on device, cleanup temp buffers
+        staging_buffer.destroy(vulkan_instance.allocator);
     }
 
     void Vulkan_Renderer::create_uniform_buffers()

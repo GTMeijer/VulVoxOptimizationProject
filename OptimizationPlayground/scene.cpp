@@ -51,5 +51,18 @@ void Scene::draw()
         }
     }
 
+    std::vector<vulvox::Instance_Data> konata_matrices;
+    for (size_t i = 0; i < 3; i++)
+    {
+        for (size_t j = 0; j < 3; j++)
+        {
+            vulvox::Instance_Data instance_data;
+            instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 75.f, 50.0f, j * 75.f));
+
+            konata_matrices.push_back(instance_data);
+        }
+    }
+
+    renderer->draw_instanced("Konata", "Konata", konata_matrices);
 }
 

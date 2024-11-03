@@ -4,10 +4,8 @@ namespace vulvox
 {
     struct Instance_Data
     {
-        glm::vec3 position;
-        glm::vec3 rotation;
-        float scale;
-        uint32_t texture_index;
+        glm::mat4 instance_model_matrix = glm::mat4{ 1.0f };
+        uint32_t texture_index = 0;
 
         /// <summary>
         /// Returns a description of the input buffer containing instances
@@ -31,27 +29,23 @@ namespace vulvox
         static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions(uint32_t binding)
         {
             std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
-            attribute_descriptions.resize(4);
+            attribute_descriptions.resize(5);
 
-            attribute_descriptions[0].binding = binding; //Source array binding index
-            attribute_descriptions[0].location = 3; //Location index in shader
-            attribute_descriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attribute_descriptions[0].offset = offsetof(Instance_Data, position); //size in bytes of position in class Instance_Data
+            //A mat4 uses four locations
+            for (size_t i = 0; i < 4; i++)
+            {
+                attribute_descriptions[i].binding = binding; //Source array binding index
+                attribute_descriptions[i].location = 3 + i; //Location index in shader
+                attribute_descriptions[i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                attribute_descriptions[i].offset = i * sizeof(glm::vec4); //Byte offset relative to the start of the object
+            }
 
-            attribute_descriptions[1].binding = binding; //Source array binding index
-            attribute_descriptions[1].location = 4; //Location index in shader
-            attribute_descriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attribute_descriptions[1].offset = offsetof(Instance_Data, rotation); //size in bytes of rotation in class Instance_Data
+            //TODO: Check if offset is correct vs the one in the below one
 
-            attribute_descriptions[2].binding = binding; //Source array binding index
-            attribute_descriptions[2].location = 5; //Location index in shader
-            attribute_descriptions[2].format = VK_FORMAT_R32_SFLOAT;
-            attribute_descriptions[2].offset = offsetof(Instance_Data, scale); //size in bytes of scale in class Instance_Data
-
-            attribute_descriptions[3].binding = binding; //Source array binding index
-            attribute_descriptions[3].location = 6; //Location index in shader
-            attribute_descriptions[3].format = VK_FORMAT_R32_SINT;
-            attribute_descriptions[3].offset = offsetof(Instance_Data, texture_index); //size in bytes of texture_index in class Instance_Data
+            attribute_descriptions[4].binding = binding; //Source array binding index
+            attribute_descriptions[4].location = 7; //Location index in shader
+            attribute_descriptions[4].format = VK_FORMAT_R32_SINT;
+            attribute_descriptions[4].offset = offsetof(Instance_Data, texture_index); //offset in bytes of texture_index in class Instance_Data
 
             return attribute_descriptions;
         }
