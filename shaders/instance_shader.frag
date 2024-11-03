@@ -1,6 +1,6 @@
 #version 450
 
-layout(binding = 1) uniform sampler2D texture_sampler_array;
+layout(set = 1, binding = 1) uniform sampler2D texture_sampler_array;
 //layout(binding = 1) uniform sampler2DArray texture_sampler_array;
 
 layout(location = 0) in vec3 frag_color;

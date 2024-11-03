@@ -25,6 +25,7 @@ namespace vulvox
         std::string err;
         if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path_to_model.string().c_str()))
         {
+            std::cout << warn << err << std::endl;
             throw std::runtime_error(warn + err);
         }
 
@@ -80,7 +81,7 @@ namespace vulvox
 
     void Model::create_vertex_buffer(Vulkan_Command_Pool& command_pool, const std::vector<Vertex>& vertices)
     {
-        VkDeviceSize buffer_size = vertices.size();
+        VkDeviceSize buffer_size = vertices.size() * sizeof(vertices[0]);
 
         //Create staging buffer that transfers data between the host and device
         Buffer staging_buffer;
@@ -101,7 +102,7 @@ namespace vulvox
 
     void Model::create_index_buffer(Vulkan_Command_Pool& command_pool, const std::vector<uint32_t>& indices)
     {
-        VkDeviceSize buffer_size = indices.size();
+        VkDeviceSize buffer_size = indices.size() * sizeof(indices[0]);
         Buffer staging_buffer;
         staging_buffer.create(*vulkan_instance, buffer_size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);

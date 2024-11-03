@@ -45,7 +45,7 @@ namespace vulvox
             return;
         }
 
-        auto [index, succeeded] = models.try_emplace(name, &vulkan_instance, command_pool, path);
+        auto [model_it, succeeded] = models.try_emplace(name, &vulkan_instance, command_pool, path);
 
         if (!succeeded)
         {
@@ -62,13 +62,15 @@ namespace vulvox
             return;
         }
 
-        auto [index, succeeded] = textures.try_emplace(name, create_texture_image(path));
+        auto [texture_it, succeeded] = textures.try_emplace(name, create_texture_image(path));
 
         if (!succeeded)
         {
             std::string error_string = "Failed to load texture " + name + " with path: " + path.string();
             throw std::runtime_error(error_string);
         }
+
+        create_texture_descriptor_set(name);
     }
 
     void Vulkan_Renderer::load_texture_array(const std::string& name, const std::filesystem::path& path)
@@ -121,7 +123,8 @@ namespace vulvox
         swap_chain.create_swap_chain(window, vulkan_instance.surface);
 
         create_render_pass();
-        create_descriptor_set_layout();
+        create_mvp_descriptor_set_layout();
+        create_texture_descriptor_set_layout();
         create_graphics_pipeline();
         command_pool = Vulkan_Command_Pool(&vulkan_instance, MAX_FRAMES_IN_FLIGHT);
         create_depth_resources();
@@ -170,7 +173,9 @@ namespace vulvox
         textures.clear();
 
         //Cleanup descriptor set layout and buffers
-        vkDestroyDescriptorSetLayout(vulkan_instance.device, descriptor_set_layout, nullptr);
+        vkDestroyDescriptorSetLayout(vulkan_instance.device, mvp_descriptor_set_layout, nullptr);
+
+        //TODO: Destruction loop for texture layouts
 
         //Clear all the models and their (vertex & index) buffers
         for (auto& [name, model] : models)
@@ -297,30 +302,29 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
     {
-        //TODO: Bind texture
-
         //Set the vertex buffers
         std::vector<VkBuffer> vertex_buffers;
-        vertex_buffers.push_back(models[model_name].vertex_buffer.buffer);
+        vertex_buffers.push_back(models.at(model_name).vertex_buffer.buffer);
         std::array<VkDeviceSize, 1> offsets = { 0 };
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, vertex_buffers.data(), offsets.data());
 
         //Set the index buffers
         std::vector<VkBuffer> index_buffers;
-        vkCmdBindIndexBuffer(current_command_buffer, models[model_name].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
         //Set the uniform buffers
+        //Bind set 0, the MVP buffer
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
-
-        single_konata_matrix = glm::rotate(single_konata_matrix, glm::radians(1.f), glm::vec3(0, 1, 0));
+        //Bind set 1, the texture
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_descriptor_sets.at(texture_name), 0, nullptr);
 
         //Set the push constants (model matrix)
-        vkCmdPushConstants(current_command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &single_konata_matrix);
+        vkCmdPushConstants(current_command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model_matrix);
 
         //Bind to graphics pipeline: The shaders and configuration used to the render the object
         vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);
 
-        //Draw command, set vertex and instance counts (we're not using instancing) and indices
+        //Draw command, set vertex and instance counts (we're not using instancing here) and indices
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
@@ -328,26 +332,28 @@ namespace vulvox
     {
     }
 
-    void Vulkan_Renderer::draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
+    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
     {
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        ////Instanced Konatas
+        //TODO: Bind texture
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
         vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
+
         //Binding point 0 - mesh vertex buffer
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models[model_name].vertex_buffer.buffer, offsets.data());
         //Binding point 1 - instance data buffer
         vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffer.buffer, offsets.data());
+
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models[model_name].index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
         //Render instances
-        int instance_count = 10;
+        uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices)
+    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices)
     {
     }
 
@@ -429,37 +435,50 @@ namespace vulvox
     }
 
     /// <summary>
-    /// Creates the descriptor sets that describe the layout of the data buffers in our pipeline.
-    /// Some hardware only allows up to four descriptor sets being created,
-    /// so instead of allocating a seperate set for each resource we bind them together into one.
+    /// Creates the descriptor sets that describes the layout of the mvp matrix data binding in our pipeline.
     /// </summary>
-    void Vulkan_Renderer::create_descriptor_set_layout()
+    void Vulkan_Renderer::create_mvp_descriptor_set_layout()
     {
         //Layout binding for the uniform buffer
-        VkDescriptorSetLayoutBinding ubo_layout_binding{};
-        ubo_layout_binding.binding = 0; //Same as in shader
-        ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        ubo_layout_binding.descriptorCount = 1;
-        ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //This buffer is (only) referenced in the vertex stage
-        ubo_layout_binding.pImmutableSamplers = nullptr; //Optional
+        VkDescriptorSetLayoutBinding mvp_layout_binding{};
+        mvp_layout_binding.binding = 0; //Same as in shader
+        mvp_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        mvp_layout_binding.descriptorCount = 1;
+        mvp_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //This buffer is (only) referenced in the vertex stage
+        mvp_layout_binding.pImmutableSamplers = nullptr; //Optional
 
+        //Bind the layout binding in the single descriptor set layout
+        VkDescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &mvp_layout_binding;
+
+        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &mvp_descriptor_set_layout) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to created descriptor set layout!");
+        }
+    }
+
+    /// <summary>
+    /// Creates the descriptor sets that describes the layout of the texture binding in our pipeline.
+    /// </summary>
+    void Vulkan_Renderer::create_texture_descriptor_set_layout()
+    {
         //Layout binding for the image sampler
         VkDescriptorSetLayoutBinding sampler_layout_binding{};
-        sampler_layout_binding.binding = 1;
+        sampler_layout_binding.binding = 1; //Same as in shader
         sampler_layout_binding.descriptorCount = 1;
         sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         sampler_layout_binding.pImmutableSamplers = nullptr;
         sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; //Connect to fragment shader stage
 
-        //Bind the layout bindings in the single descriptor set layout
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { ubo_layout_binding, sampler_layout_binding };
-
+        //Bind the layout binding in the single descriptor set layout
         VkDescriptorSetLayoutCreateInfo layout_info{};
         layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
-        layout_info.pBindings = bindings.data();
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &sampler_layout_binding;
 
-        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS)
+        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &texture_descriptor_set_layout) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to created descriptor set layout!");
         }
@@ -475,10 +494,12 @@ namespace vulvox
 
         //Define global variables (like a MVP matrix)
         //These are defined in a seperate pipeline layout
+        std::array<VkDescriptorSetLayout, 2> set_layouts = { mvp_descriptor_set_layout, texture_descriptor_set_layout };
+
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipeline_layout_info.setLayoutCount = 1; //Amount of descriptor set layout (uniform buffer layout)
-        pipeline_layout_info.pSetLayouts = &descriptor_set_layout;
+        pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(set_layouts.size()); //Amount of descriptor set layouts (uniform buffer layouts)
+        pipeline_layout_info.pSetLayouts = set_layouts.data();
         pipeline_layout_info.pushConstantRangeCount = 1; //Small uniform data, used for the model matrix
         pipeline_layout_info.pPushConstantRanges = &push_constant_range;
 
@@ -838,7 +859,7 @@ namespace vulvox
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
         pool_info.pPoolSizes = pool_sizes.data();
-        pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 256; // Just allocate a bunch so we can load multiple models, can make dynamic later.
+        pool_info.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 510; // Just allocate a bunch so we can load multiple models, can make dynamic later.
         pool_info.flags = 0;
 
         if (vkCreateDescriptorPool(vulkan_instance.device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
@@ -847,26 +868,30 @@ namespace vulvox
         }
     }
 
-    //TODO: Split this up into dynamic
-    //Map with descriptor per model
+
+    /// <summary>
+    /// Allocates the mvp descriptor sets for all shaders.
+    /// The MVP buffer will never change (only its data will) so we write it here as well.
+    /// </summary>
     void Vulkan_Renderer::create_descriptor_sets()
     {
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout);
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, mvp_descriptor_set_layout);
 
         VkDescriptorSetAllocateInfo allocate_info{};
         allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         allocate_info.descriptorPool = descriptor_pool;
         allocate_info.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        allocate_info.pSetLayouts = layouts.data(); //Uniform layout
+        allocate_info.pSetLayouts = layouts.data(); //mvp uniform layout
 
         ///Triangle descriptor sets
         descriptor_sets.tri_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, descriptor_sets.tri_descriptor_set.data()) != VK_SUCCESS)
+
+        if (VkResult result = vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, descriptor_sets.tri_descriptor_set.data()); result != VK_SUCCESS)
         {
-            throw std::runtime_error("Failed to allocate descriptor sets!");
+            std::string error_string{ string_VkResult(result) };
+            throw std::runtime_error("Failed to allocate descriptor sets! " + error_string);
         }
 
-        //Describe the data layout of the uniform buffers and image sampler
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             VkDescriptorBufferInfo buffer_info{};
@@ -874,39 +899,22 @@ namespace vulvox
             buffer_info.offset = 0;
             buffer_info.range = sizeof(MVP);
 
-            VkDescriptorImageInfo image_info{};
-            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            image_info.imageView = textures["Konata"].image_view;
-            image_info.sampler = textures["Konata"].sampler;
-
             //Tri shaders
-            std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
+            VkWriteDescriptorSet descriptor_write{};
 
-            //TODO: Do we need to update this MVP uniform binding? It will never change..
             //Descriptor for the MVP uniform
-            descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_writes[0].dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
-            descriptor_writes[0].dstBinding = 0; //Binding index equal to shader binding index
-            descriptor_writes[0].dstArrayElement = 0; //Index of array data to update, no array so zero
-            descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptor_writes[0].descriptorCount = 1; //A single buffer info struct
-            descriptor_writes[0].pBufferInfo = &buffer_info; //Data and layout of buffer
-            descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
-            descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
+            descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_write.dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
+            descriptor_write.dstBinding = 0; //Binding index equal to shader binding index
+            descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
+            descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptor_write.descriptorCount = 1; //A single buffer info struct
+            descriptor_write.pBufferInfo = &buffer_info; //Data and layout of buffer
+            descriptor_write.pImageInfo = nullptr; //Optional, only used for image data
+            descriptor_write.pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
 
-            //TODO: Split
-            //Descriptor for the image sampler uniform
-            descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_writes[1].dstSet = descriptor_sets.tri_descriptor_set[i]; //Binding to update
-            descriptor_writes[1].dstBinding = 1; //Binding index equal to shader binding index
-            descriptor_writes[1].dstArrayElement = 0; //Index of array data to update, no array so zero
-            descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_writes[1].descriptorCount = 1; //A single buffer info struct
-            descriptor_writes[1].pImageInfo = &image_info; //This is an image sampler so we provide an image data description
-
-            //Apply updates
-            //Only write descriptor, no copy, so copy variable is 0
-            vkUpdateDescriptorSets(vulkan_instance.device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+            //Apply updates, Only write descriptor, no copy, so copy variable is 0
+            vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
         }
 
         ///Instance descriptor sets
@@ -918,46 +926,129 @@ namespace vulvox
             throw std::runtime_error("Failed to allocate descriptor sets! " + error_string);
         }
 
+        //TODO: Do we need this or can we just use the above one for all shaders?
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
-
             VkDescriptorBufferInfo buffer_info{};
             buffer_info.buffer = uniform_buffers[i].buffer;
             buffer_info.offset = 0;
             buffer_info.range = sizeof(MVP);
 
+            VkWriteDescriptorSet descriptor_write{};
+
             //Descriptor for the MVP uniform
-            descriptor_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_writes[0].dstSet = descriptor_sets.instance_descriptor_set[i]; //Binding to update
-            descriptor_writes[0].dstBinding = 0; //Binding index equal to shader binding index
-            descriptor_writes[0].dstArrayElement = 0; //Index of array data to update, no array so zero
-            descriptor_writes[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptor_writes[0].descriptorCount = 1; //A single buffer info struct
-            descriptor_writes[0].pBufferInfo = &buffer_info; //Data and layout of buffer
-            descriptor_writes[0].pImageInfo = nullptr; //Optional, only used for image data
-            descriptor_writes[0].pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
-
-            VkDescriptorImageInfo image_info{};
-            image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            //image_info.imageView = instance_konata.texture.image_view;
-            //image_info.sampler = instance_konata.texture.sampler;
-
-            image_info.imageView = textures["Konata"].image_view;
-            image_info.sampler = textures["Konata"].sampler;
-
-            //Descriptor for the image sampler uniform
-            descriptor_writes[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptor_writes[1].dstSet = descriptor_sets.instance_descriptor_set[i]; //Binding to update
-            descriptor_writes[1].dstBinding = 1; //Binding index equal to shader binding index
-            descriptor_writes[1].dstArrayElement = 0; //Index of array data to update, no array so zero
-            descriptor_writes[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_writes[1].descriptorCount = 1; //A single buffer info struct
-            descriptor_writes[1].pImageInfo = &image_info; //This is an image sampler so we provide an image data description
+            descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_write.dstSet = descriptor_sets.instance_descriptor_set[i]; //Binding to update
+            descriptor_write.dstBinding = 0; //Binding index equal to shader binding index
+            descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
+            descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptor_write.descriptorCount = 1; //A single buffer info struct
+            descriptor_write.pBufferInfo = &buffer_info; //Data and layout of buffer
+            descriptor_write.pImageInfo = nullptr; //Optional, only used for image data
+            descriptor_write.pTexelBufferView = nullptr; //Optional, only used for buffers views (for tex buffers)
 
             //Apply updates
-            vkUpdateDescriptorSets(vulkan_instance.device, static_cast<uint32_t>(descriptor_writes.size()), descriptor_writes.data(), 0, nullptr);
+            vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
         }
+    }
+
+    /// <summary>
+    /// Allocates a new descriptor for the texture sampler uniform in the triangle shader to point to the given texture
+    /// </summary>
+    /// <param name="texture_name">Name of the texture to create a descriptor for</param>
+    void Vulkan_Renderer::create_texture_descriptor_set(const std::string& texture_name)
+    {
+        auto [texture_descriptor_it, succeeded] = texture_descriptor_sets.try_emplace(texture_name, VkDescriptorSet{});
+
+        if (!succeeded)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
+        }
+
+        VkDescriptorSetAllocateInfo allocate_info{};
+        allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocate_info.descriptorPool = descriptor_pool;
+        allocate_info.descriptorSetCount = 1;
+        allocate_info.pSetLayouts = &texture_descriptor_set_layout; //texture uniform layout
+
+        ///Triangle descriptor sets
+        descriptor_sets.tri_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, &texture_descriptor_it->second) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets!");
+        }
+
+        VkDescriptorImageInfo image_info{};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        image_info.imageView = textures.at(texture_name).image_view;
+        image_info.sampler = textures.at(texture_name).sampler;
+
+        VkWriteDescriptorSet descriptor_write{};
+
+        //Descriptor for the image sampler uniform
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = texture_descriptor_it->second; //Binding to update
+        descriptor_write.dstBinding = 1; //Binding index equal to shader binding index
+        descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_write.descriptorCount = 1; //A single buffer info struct
+        descriptor_write.pImageInfo = &image_info; //This is an image sampler so we provide an image data description
+
+        //Apply updates, only write descriptor, no copy, so copy variable is 0
+        vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
+    }
+
+    /// <summary>
+    /// Allocates a new descriptor for the texture sampler uniform in the instance shader to point to the given texture
+    /// </summary>
+    /// <param name="texture_name">Name of the texture to create a descriptor for</param>
+    void Vulkan_Renderer::create_instance_texture_descriptor_set(const std::string& texture_name)
+    {
+        //TODO: Separate for texture array? Do we even need this separate for the instance shader?
+        //TODO: Rename this to array and switch it to actually creating a texture array
+
+        auto [texture_descriptor_it, succeeded] = texture_descriptor_sets.try_emplace(texture_name, VkDescriptorSet{});
+
+        if (succeeded)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
+        }
+
+        VkDescriptorSetAllocateInfo allocate_info{};
+        allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocate_info.descriptorPool = descriptor_pool;
+        allocate_info.descriptorSetCount = 1;
+        allocate_info.pSetLayouts = &texture_descriptor_set_layout; //texture uniform layout
+
+        ///Triangle descriptor sets
+        descriptor_sets.tri_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, &texture_descriptor_it->second) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets!");
+        }
+
+        std::array<VkWriteDescriptorSet, 1> descriptor_writes{};
+
+        VkDescriptorImageInfo image_info{};
+        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        image_info.imageView = textures.at(texture_name).image_view;
+        image_info.sampler = textures.at(texture_name).sampler;
+
+        VkWriteDescriptorSet descriptor_write;
+
+        //Descriptor for the image sampler uniform
+        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptor_write.dstSet = texture_descriptor_it->second; //Binding to update
+        descriptor_write.dstBinding = 1; //Binding index equal to shader binding index
+        descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
+        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptor_write.descriptorCount = 1; //A single buffer info struct
+        descriptor_write.pImageInfo = &image_info; //This is an image sampler so we provide an image data description
+
+        //Apply updates, only write descriptor, no copy, so copy variable is 0
+        vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
     }
 
     Image Vulkan_Renderer::create_texture_image(const std::filesystem::path& texture_path)
@@ -1136,22 +1227,6 @@ namespace vulvox
             throw std::runtime_error("Failed to record command buffer!");
         }
     }
-
-    //void Vulkan_Renderer::record_command_buffer(VkCommandBuffer command_buffer, uint32_t image_index)
-    //{
-    //
-    //
-    //    //Render the objects
-    //
-    //
-    //    //TODO: Split in single and instance. Each call has a single vertex buffer.
-    //    //TODO: Bind descriptor set per draw call (group by model?)
-    //
-
-    //
-
-
-    //}
 
     void Vulkan_Renderer::cleanup_swap_chain()
     {

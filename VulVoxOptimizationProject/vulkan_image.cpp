@@ -28,9 +28,11 @@ namespace vulvox
         image_info.samples = VK_SAMPLE_COUNT_1_BIT;
         image_info.flags = 0; //Optional
 
+        current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+
         VmaAllocationCreateInfo image_alloc_info{};
         image_alloc_info.usage = memory_usage;
-
+        
         if (VkResult result = vmaCreateImage(vulkan_instance->allocator, &image_info, &image_alloc_info, &image, &allocation, &allocation_info); result != VK_SUCCESS)
         {
             std::string error_string{ string_VkResult(result) };

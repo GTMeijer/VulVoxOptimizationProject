@@ -26,8 +26,8 @@ namespace vulvox
 
         void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
         void draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix);
-        void draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices);
-        void draw_instanced(const std::string model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices);
+        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices);
+        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<int>& texture_indices, const std::vector<glm::mat4>& model_matrices);
 
         /// <summary>
         /// Checks if a close command was given to the window, indicating the program should shutdown.
@@ -77,8 +77,12 @@ namespace vulvox
         void create_uniform_buffers();
 
         void create_descriptor_pool();
-        void create_descriptor_set_layout(); //Describes uniform buffers and image samplers
+        void create_mvp_descriptor_set_layout(); //Describes mvp uniform buffers
+        void create_texture_descriptor_set_layout(); //Describes uniform image samplers
         void create_descriptor_sets();
+
+        void create_texture_descriptor_set(const std::string& texture_name);
+        void create_instance_texture_descriptor_set(const std::string& texture_name);
 
         void create_sync_objects();
 
@@ -117,7 +121,8 @@ namespace vulvox
 
         VkRenderPass render_pass; //Stores how the render images are handeled
 
-        VkDescriptorSetLayout descriptor_set_layout;
+        VkDescriptorSetLayout mvp_descriptor_set_layout;
+        VkDescriptorSetLayout texture_descriptor_set_layout;
         VkPipelineLayout pipeline_layout; //Describes the layout of the 'global' data, e.g. uniform buffers
 
         //GPU draw state (stages, shaders, rasterization options, depth settings, etc.)
@@ -161,6 +166,7 @@ namespace vulvox
 
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;
+        std::unordered_map<std::string, VkDescriptorSet> texture_descriptor_sets; //TODO: Move into texture?
         std::unordered_map<std::string, Image> texture_arrays;
 
         MVP model_view_projection;

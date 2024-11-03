@@ -11,3 +11,6 @@
 
 const std::string MODEL_PATH = "../models/konata.obj";
 const std::string TEXTURE_PATH = "../textures/konata_texture.png";
+
+const std::string CUBE_MODEL_PATH = "../models/cube-tex.obj";
+const std::string CUBE_TEXTURE_PATH = "../textures/cube-tex.png";

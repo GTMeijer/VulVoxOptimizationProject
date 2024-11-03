@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "scene.h"
 
-Scene::Scene(vulvox::Vulkan_Renderer& renderer)
+Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
 {
     glm::vec3 camera_pos{ 0.0f, 0.0f, 0.0f };
     glm::vec3 camera_up{ 0.0f, 1.0f, 0.0f };
@@ -12,26 +12,35 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer)
     renderer.load_model("Konata", MODEL_PATH);
     renderer.load_texture("Konata", TEXTURE_PATH);
 
+    //renderer.load_model("cube", CUBE_MODEL_PATH);
+    //renderer.load_texture("cube", CUBE_TEXTURE_PATH);
+
 }
 
-void Scene::update(float delta_time, GLFWwindow* window)
+void Scene::update(float delta_time)
 {
     //Update camera on key presses
     float camera_speed = 100.0f;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) { camera.move_forward(delta_time * camera_speed); }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) { camera.move_backward(delta_time * camera_speed); }
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) { camera.move_left(delta_time * camera_speed); }
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) { camera.move_right(delta_time * camera_speed); }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) { camera.rotate_left(camera_speed * delta_time); }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) { camera.rotate_right(camera_speed * delta_time); }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) { camera.move_up(delta_time * camera_speed); }
-    if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS) { camera.move_down(delta_time * camera_speed); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_W) == GLFW_PRESS) { camera.move_forward(delta_time * camera_speed); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_S) == GLFW_PRESS) { camera.move_backward(delta_time * camera_speed); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_Q) == GLFW_PRESS) { camera.move_left(delta_time * camera_speed); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_E) == GLFW_PRESS) { camera.move_right(delta_time * camera_speed); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_A) == GLFW_PRESS) { camera.rotate_left(camera_speed * delta_time); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_D) == GLFW_PRESS) { camera.rotate_right(camera_speed * delta_time); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_SPACE) == GLFW_PRESS) { camera.move_up(delta_time * camera_speed); }
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_Z) == GLFW_PRESS) { camera.move_down(delta_time * camera_speed); }
+
+    renderer->set_camera(camera.get_mvp());
 }
 
-void Scene::draw(vulvox::Vulkan_Renderer& renderer)
+void Scene::draw()
 {
-    renderer.set_camera(camera.get_mvp());
+    //glm::mat4 single_konata_matrix = glm::rotate(single_konata_matrix, glm::radians(1.f), glm::vec3(0, 1, 0));
 
-    //renderer.
+    glm::mat4 single_konata_matrix{ 1.0f };
+
+    renderer->draw_model("Konata", "Konata", single_konata_matrix);
+
+
 }
 

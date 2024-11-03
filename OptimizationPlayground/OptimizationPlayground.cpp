@@ -22,10 +22,10 @@ int main()
         //Required to update input state
         glfwPollEvents();
 
-        scene.update(delta_time, renderer.get_window());
-        scene.draw(renderer);
+        scene.update(delta_time);
 
         renderer.start_draw();
+        scene.draw();
         renderer.end_draw();
     }
 
