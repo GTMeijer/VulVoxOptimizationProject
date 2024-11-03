@@ -784,31 +784,20 @@ namespace vulvox
     //TODO: This is not dynamic so take into account how many we max want to draw..
     void Vulkan_Renderer::create_instance_buffers()
     {
-        const int instance_count = 10;
+        const int instance_count = 50;
 
         //TODO: Make dynamic
         VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * instance_count;
 
         //Create instance buffer as device only buffer
-        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 0);
+        instance_data_buffer.create(vulkan_instance, instance_data_buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
     }
 
     void Vulkan_Renderer::copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data)
     {
         size_t data_size = instance_data.size() * sizeof(instance_data[0]);
 
-        Buffer staging_buffer;
-        staging_buffer.create(vulkan_instance, instance_data_buffer.allocation_info.size,
-            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-        memcpy(staging_buffer.allocation_info.pMappedData, instance_data.data(), data_size);
-
-        //Copy data from host to device
-        command_pool.copy_buffer(staging_buffer.buffer, instance_data_buffer.buffer, data_size);
-
-        //Data on device, cleanup temp buffers
-        staging_buffer.destroy(vulkan_instance.allocator);
+        memcpy(instance_data_buffer.allocation_info.pMappedData, instance_data.data(), data_size);
     }
 
     void Vulkan_Renderer::create_uniform_buffers()
