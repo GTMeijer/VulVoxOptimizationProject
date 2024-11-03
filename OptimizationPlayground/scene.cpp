@@ -14,8 +14,8 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
 
     konata_matrix = glm::mat4{ 1.0f };
 
-    //renderer.load_model("cube", CUBE_MODEL_PATH);
-    //renderer.load_texture("cube", CUBE_TEXTURE_PATH);
+    renderer.load_model("cube", CUBE_MODEL_PATH);
+    renderer.load_texture("cube", CUBE_TEXTURE_PATH);
 
 }
 
@@ -32,7 +32,9 @@ void Scene::update(float delta_time)
     if (glfwGetKey(renderer->get_window(), GLFW_KEY_SPACE) == GLFW_PRESS) { camera.move_up(delta_time * camera_speed); }
     if (glfwGetKey(renderer->get_window(), GLFW_KEY_Z) == GLFW_PRESS) { camera.move_down(delta_time * camera_speed); }
 
+    camera.set_aspect_ratio(renderer->get_aspect_ratio());
     renderer->set_camera(camera.get_mvp());
+
 }
 
 void Scene::draw()

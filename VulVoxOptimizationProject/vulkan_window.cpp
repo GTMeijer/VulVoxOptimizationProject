@@ -1248,6 +1248,9 @@ namespace vulvox
             glfwWaitEvents();
         }
 
+        width = new_width;
+        height = new_height;
+
         vkDeviceWaitIdle(vulkan_instance.device);
 
         cleanup_swap_chain();
