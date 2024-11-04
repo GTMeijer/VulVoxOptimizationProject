@@ -5,6 +5,10 @@ namespace vulvox
 {
     void Buffer::create(Vulkan_Instance& instance, VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags alloc_flags)
     {
+        this->size = size;
+        this->usage_flags = usage;
+        this->alloc_flags = alloc_flags;
+
         VkBufferCreateInfo buffer_info{};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         buffer_info.size = size;
@@ -25,5 +29,17 @@ namespace vulvox
     void Buffer::destroy(VmaAllocator allocator)
     {
         vmaDestroyBuffer(allocator, buffer, allocation);
+    }
+
+    /// <summary>
+    /// Destroy and recreate the buffer with given size.
+    /// </summary>
+    /// <param name="new_size">The new buffer size in bytes.</param>
+    void Buffer::recreate(Vulkan_Instance& instance, VkDeviceSize new_size)
+    {
+        destroy(instance.allocator);
+
+        create(instance, new_size, usage_flags, alloc_flags);
+
     }
 }

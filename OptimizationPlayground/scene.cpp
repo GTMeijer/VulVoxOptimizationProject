@@ -18,9 +18,9 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
     renderer.load_texture("cube", CUBE_TEXTURE_PATH);
 
     konata_matrices.reserve(25);
-    for (size_t i = 0; i < 5; i++)
+    for (size_t i = 0; i < 25; i++)
     {
-        for (size_t j = 0; j < 5; j++)
+        for (size_t j = 0; j < 25; j++)
         {
             vulvox::Instance_Data instance_data;
             instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 75.f, 125.0f, j * 75.f));

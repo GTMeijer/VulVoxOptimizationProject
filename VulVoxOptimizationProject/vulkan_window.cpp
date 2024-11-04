@@ -806,6 +806,11 @@ namespace vulvox
     {
         size_t data_size = instance_data.size() * sizeof(instance_data[0]);
 
+        if (data_size > instance_data_buffers[current_frame].size)
+        {
+            instance_data_buffers[current_frame].recreate(vulkan_instance, data_size);
+        }
+
         memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, instance_data.data(), data_size);
     }
 
