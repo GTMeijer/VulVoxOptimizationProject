@@ -23,12 +23,12 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
         for (size_t j = 0; j < 25; j++)
         {
             vulvox::Instance_Data instance_data;
-            instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 75.f, 125.0f, j * 75.f));
+            instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, 125.0f, j * 10.f));
+            instance_data.instance_model_matrix = glm::scale(instance_data.instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
 
             konata_matrices.push_back(instance_data);
         }
     }
-
 }
 
 void Scene::update(float delta_time)
@@ -44,13 +44,34 @@ void Scene::update(float delta_time)
     if (glfwGetKey(renderer->get_window(), GLFW_KEY_SPACE) == GLFW_PRESS) { camera.move_up(delta_time * camera_speed); }
     if (glfwGetKey(renderer->get_window(), GLFW_KEY_Z) == GLFW_PRESS) { camera.move_down(delta_time * camera_speed); }
 
+    if (glfwGetKey(renderer->get_window(), GLFW_KEY_KP_ADD) == GLFW_PRESS)
+    {
+        num_layers++;
+
+        konata_matrices.reserve(25 * 25 * num_layers);
+
+        for (size_t i = 0; i < 250; i++)
+        {
+            for (size_t j = 0; j < 250; j++)
+            {
+                vulvox::Instance_Data instance_data;
+                instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, (num_layers + 1) * 10.0f + 125.0f, j * 10.f));
+                instance_data.instance_model_matrix = glm::scale(instance_data.instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
+
+                konata_matrices.push_back(instance_data);
+            }
+        }
+    }
+
     camera.set_aspect_ratio(renderer->get_aspect_ratio());
     renderer->set_camera(camera.get_mvp());
 
-    for (auto& konata_matrix : konata_matrices)
-    {
-        konata_matrix.instance_model_matrix = glm::rotate(konata_matrix.instance_model_matrix, delta_time * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-    }
+    //for (auto& konata_matrix : konata_matrices)
+    //{
+    //    konata_matrix.instance_model_matrix = glm::rotate(konata_matrix.instance_model_matrix, delta_time * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+    //}
+
+
 }
 
 void Scene::draw()
@@ -65,5 +86,5 @@ void Scene::draw()
         }
     }
 
-    renderer->draw_instanced("Konata", "Konata", konata_matrices);
+    renderer->draw_instanced("cube", "cube", konata_matrices);
 }

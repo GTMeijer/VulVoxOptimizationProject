@@ -9,6 +9,8 @@ public:
 
 private:
 
+    int num_layers = 1;
+
     vulvox::Vulkan_Renderer* renderer;
     Camera camera;
 
