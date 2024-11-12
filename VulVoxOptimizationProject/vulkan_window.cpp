@@ -709,11 +709,28 @@ namespace vulvox
         shader_stages_info[0] = instance_vert_shader_stage_info;
         shader_stages_info[1] = instance_frag_shader_stage_info;
 
+        //The instance pipeline uses the input bindings and attribute descriptions except for the texture array index
+        vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size());
+        vertex_input_state_info.vertexAttributeDescriptionCount = 7;
+
+        if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_pipeline) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create graphics pipeline!");
+        }
+
+        //Per instance pipeline with texture array support
+        VkPipelineShaderStageCreateInfo instance_texture_array_vert_shader_stage_info = instance_vert_tex_array_shader.get_shader_stage_create_info();
+        VkPipelineShaderStageCreateInfo instance_texture_array_frag_shader_stage_info = instance_frag_tex_array_shader.get_shader_stage_create_info();
+        
+        //Use instance vert and frag shaders
+        shader_stages_info[0] = instance_texture_array_vert_shader_stage_info;
+        shader_stages_info[1] = instance_texture_array_frag_shader_stage_info;
+
         //The instance pipeline uses all the input bindings and attribute descriptions
         vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size());
         vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size());
 
-        if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_pipeline) != VK_SUCCESS)
+        if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_tex_array_pipeline) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to create graphics pipeline!");
         }

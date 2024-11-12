@@ -128,6 +128,7 @@ namespace vulvox
 
         //GPU draw state (stages, shaders, rasterization options, depth settings, etc.)
         VkPipeline instance_pipeline;
+        VkPipeline instance_tex_array_pipeline;
         VkPipeline vertex_pipeline;
 
         ///Stuff that gets send to the shaders

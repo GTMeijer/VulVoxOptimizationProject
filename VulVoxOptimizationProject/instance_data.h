@@ -32,15 +32,13 @@ namespace vulvox
             attribute_descriptions.resize(5);
 
             //A mat4 uses four locations
-            for (size_t i = 0; i < 4; i++)
+            for (uint32_t i = 0; i < 4; i++)
             {
                 attribute_descriptions[i].binding = binding; //Source array binding index
                 attribute_descriptions[i].location = 3 + i; //Location index in shader
                 attribute_descriptions[i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
                 attribute_descriptions[i].offset = i * sizeof(glm::vec4); //Byte offset relative to the start of the object
             }
-
-            //TODO: Check if offset is correct vs the one in the below one
 
             attribute_descriptions[4].binding = binding; //Source array binding index
             attribute_descriptions[4].location = 7; //Location index in shader
