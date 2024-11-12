@@ -5,7 +5,6 @@ namespace vulvox
     struct Instance_Data
     {
         glm::mat4 instance_model_matrix = glm::mat4{ 1.0f };
-        uint32_t texture_index = 0;
 
         /// <summary>
         /// Returns a description of the input buffer containing instances
@@ -29,7 +28,7 @@ namespace vulvox
         static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions(uint32_t binding)
         {
             std::vector<VkVertexInputAttributeDescription> attribute_descriptions{};
-            attribute_descriptions.resize(5);
+            attribute_descriptions.resize(4);
 
             //A mat4 uses four locations
             for (uint32_t i = 0; i < 4; i++)
@@ -39,11 +38,6 @@ namespace vulvox
                 attribute_descriptions[i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
                 attribute_descriptions[i].offset = i * sizeof(glm::vec4); //Byte offset relative to the start of the object
             }
-
-            attribute_descriptions[4].binding = binding; //Source array binding index
-            attribute_descriptions[4].location = 7; //Location index in shader
-            attribute_descriptions[4].format = VK_FORMAT_R32_SINT;
-            attribute_descriptions[4].offset = offsetof(Instance_Data, texture_index); //offset in bytes of texture_index in class Instance_Data
 
             return attribute_descriptions;
         }

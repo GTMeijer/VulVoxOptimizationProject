@@ -132,6 +132,7 @@ namespace vulvox
 
         create_uniform_buffers();
         create_instance_buffers();
+        create_instance_texture_buffers();
         create_descriptor_pool();
         create_descriptor_sets();
         create_sync_objects();
@@ -189,7 +190,7 @@ namespace vulvox
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             instance_data_buffers[i].destroy(vulkan_instance.allocator);
-
+            instance_texture_index_buffers[i].destroy(vulkan_instance.allocator);
         }
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -363,9 +364,36 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data, const std::vector<int>& texture_indices)
+    void Vulkan_Renderer::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices)
     {
+        std::array<VkDeviceSize, 1> offsets = { 0 };
 
+        copy_to_instance_buffer(instance_data);
+        copy_to_instance_texture_buffer(texture_indices);
+
+        //Bind the uniform buffers
+        //Bind set 0, the MVP buffer
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
+        //Bind set 1, the texture
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_descriptor_sets.at(texture_array_name), 0, nullptr);
+
+        //Binding point 0 - mesh vertex buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
+
+        //Binding point 1 - instance data buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+
+        //Binding point 2 - texture array index buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+
+        //Bind index buffer
+        vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_tex_array_pipeline);
+
+        //Render instances
+        uint32_t instance_count = static_cast<uint32_t>(instance_data.size());
+        vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
     void Vulkan_Renderer::create_render_pass()
@@ -648,7 +676,9 @@ namespace vulvox
             //Binding point 0: Mesh vertex layout description at per-vertex rate
             Vertex::get_binding_description(0),
             //Binding point 1: Instanced data at per-instance rate
-            Instance_Data::get_binding_description(1)
+            Instance_Data::get_binding_description(1),
+            //Binding point 2: Texture array index
+            Texture_Array_Index_Binding::get_binding_description(2)
         };
 
         //Vertex attribute bindings
@@ -660,17 +690,19 @@ namespace vulvox
 
         //Per-vertex attributes
         //These are advanced for each vertex fetched by the vertex shader
-        for (auto& attribute_desc : Vertex::get_attribute_descriptions(0))
+        for (const auto& attribute_desc : Vertex::get_attribute_descriptions(0))
         {
             attribute_descriptions.push_back(attribute_desc);
         }
 
         //Per-Instance attributes
         //These are advanced for each instance rendered
-        for (auto& attribute_desc : Instance_Data::get_attribute_descriptions(1))
+        for (const auto& attribute_desc : Instance_Data::get_attribute_descriptions(1))
         {
             attribute_descriptions.push_back(attribute_desc);
         }
+
+        attribute_descriptions.push_back(Texture_Array_Index_Binding::get_attribute_description(2));
 
         VkPipelineVertexInputStateCreateInfo vertex_input_state_info{};
         vertex_input_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -710,7 +742,7 @@ namespace vulvox
         shader_stages_info[1] = instance_frag_shader_stage_info;
 
         //The instance pipeline uses the input bindings and attribute descriptions except for the texture array index
-        vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size());
+        vertex_input_state_info.vertexBindingDescriptionCount = 2;
         vertex_input_state_info.vertexAttributeDescriptionCount = 7;
 
         if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_pipeline) != VK_SUCCESS)
@@ -721,7 +753,7 @@ namespace vulvox
         //Per instance pipeline with texture array support
         VkPipelineShaderStageCreateInfo instance_texture_array_vert_shader_stage_info = instance_vert_tex_array_shader.get_shader_stage_create_info();
         VkPipelineShaderStageCreateInfo instance_texture_array_frag_shader_stage_info = instance_frag_tex_array_shader.get_shader_stage_create_info();
-        
+
         //Use instance vert and frag shaders
         shader_stages_info[0] = instance_texture_array_vert_shader_stage_info;
         shader_stages_info[1] = instance_texture_array_frag_shader_stage_info;
@@ -799,19 +831,33 @@ namespace vulvox
         depth_image.create_image_view();
     }
 
-    //TODO: This is not dynamic so take into account how many we max want to draw..
     void Vulkan_Renderer::create_instance_buffers()
     {
-        const int instance_count = 50;
+        const int base_instance_count = 50;
 
-        //TODO: Make dynamic
-        VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * instance_count;
+        VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * base_instance_count;
 
         //Create instance buffers as device only buffers
         instance_data_buffers.resize(MAX_FRAMES_IN_FLIGHT);
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             instance_data_buffers[i].create(vulkan_instance, instance_data_buffer_size,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        }
+    }
+
+    void Vulkan_Renderer::create_instance_texture_buffers()
+    {
+        const int base_instance_count = 50;
+
+        VkDeviceSize instance_texture_index_buffers_size = sizeof(uint32_t) * base_instance_count;
+
+        //Create instance buffers as device only buffers
+        instance_texture_index_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            instance_texture_index_buffers[i].create(vulkan_instance, instance_texture_index_buffers_size,
                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
         }
@@ -827,6 +873,18 @@ namespace vulvox
         }
 
         memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, instance_data.data(), data_size);
+    }
+
+    void Vulkan_Renderer::copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices)
+    {
+        size_t data_size = instance_texture_indices.size() * sizeof(uint32_t);
+
+        if (data_size > instance_texture_index_buffers[current_frame].size)
+        {
+            instance_texture_index_buffers[current_frame].recreate(vulkan_instance, data_size);
+        }
+
+        memcpy(instance_texture_index_buffers[current_frame].allocation_info.pMappedData, instance_texture_indices.data(), data_size);
     }
 
     void Vulkan_Renderer::create_uniform_buffers()

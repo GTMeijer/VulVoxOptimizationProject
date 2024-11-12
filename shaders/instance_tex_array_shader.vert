@@ -14,7 +14,7 @@ layout(location = 2) in vec2 in_texture_coordinate;
 
 //Instance attributes
 layout(location = 3) in mat4 instance_model_matrix; //mat4 uses 4 slots
-layout(location = 7) in int instance_texture_index; 
+layout(location = 7) in uint instance_texture_index; 
 
 layout(location = 0) out vec3 frag_color;
 layout(location = 1) out vec3 frag_texture_coordinate;

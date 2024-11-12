@@ -27,7 +27,7 @@ namespace vulvox
         void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
         void draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix);
         void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
-        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data, const std::vector<int>& texture_indices);
+        void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices);
 
         /// <summary>
         /// Checks if a close command was given to the window, indicating the program should shutdown.
@@ -74,7 +74,9 @@ namespace vulvox
         void create_depth_resources(); //Depth buffer resources
 
         void create_instance_buffers();
+        void create_instance_texture_buffers();
         void copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data);
+        void copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_data);
         void create_uniform_buffers();
 
         void create_descriptor_pool();
@@ -153,22 +155,12 @@ namespace vulvox
         //Image used for depth testing
         Image depth_image;
 
-        glm::mat4 single_konata_matrix = glm::mat4(1.0f);
-
-        struct Instanced_Model
-        {
-            Image texture;
-        };
-
-        Instanced_Model instance_konata;
-
-        std::vector<Instance_Data> konata_instances_data;
-
         std::vector<Buffer> instance_data_buffers;
+        std::vector<Buffer> instance_texture_index_buffers;
 
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;
-        std::unordered_map<std::string, VkDescriptorSet> texture_descriptor_sets; //TODO: Move into texture?
+        std::unordered_map<std::string, VkDescriptorSet> texture_descriptor_sets;
         std::unordered_map<std::string, Image> texture_arrays;
 
         MVP model_view_projection;

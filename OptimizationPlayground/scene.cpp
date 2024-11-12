@@ -66,11 +66,6 @@ void Scene::update(float delta_time)
     camera.set_aspect_ratio(renderer->get_aspect_ratio());
     renderer->set_camera(camera.get_mvp());
 
-    //for (auto& konata_matrix : konata_matrices)
-    //{
-    //    konata_matrix.instance_model_matrix = glm::rotate(konata_matrix.instance_model_matrix, delta_time * glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-    //}
-
 
 }
 

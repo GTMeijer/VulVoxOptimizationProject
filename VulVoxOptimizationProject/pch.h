@@ -53,6 +53,7 @@
 #include "vertex.h"
 #include "mvp.h"
 #include "instance_data.h"
+#include "texture_array_index_binding.h"
 
 #include "vulkan_instance.h"
 #include "vulkan_image.h"
