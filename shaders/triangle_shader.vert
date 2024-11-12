@@ -25,5 +25,4 @@ void main()
 	gl_Position = mvp.projection * mvp.view * mvp.model * object_constants.model * vec4(in_position, 1.0);
 	frag_color = in_color;
 	frag_texture_coordinate = in_texture_coordinate;
-	
 }

@@ -9,8 +9,5 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-	//out_color = vec4(frag_texture_coordinate, 0.0, 1.0);
-	//out_color = vec4(frag_color * texture(texture_sampler, frag_texture_coordinate).rgb, 1.0);
-
-	out_color = texture(texture_sampler, frag_texture_coordinate);
+	out_color = vec4(frag_color, 1.0) * texture(texture_sampler, frag_texture_coordinate);
 }

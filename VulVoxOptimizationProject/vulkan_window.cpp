@@ -526,13 +526,17 @@ namespace vulvox
         std::filesystem::path instance_vert_shader_filepath("../shaders/instance_vert.spv");
         std::filesystem::path instance_frag_shader_filepath("../shaders/instance_frag.spv");
 
+        std::filesystem::path instance_tex_array_vert_shader_filepath("../shaders/instance_tex_array_vert.spv");
+        std::filesystem::path instance_tex_array_frag_shader_filepath("../shaders/instance_tex_array_frag.spv");
+
         Vulkan_Shader vert_shader{ vulkan_instance.device, vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
         Vulkan_Shader frag_shader{ vulkan_instance.device, frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
         Vulkan_Shader instance_vert_shader{ vulkan_instance.device, instance_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
         Vulkan_Shader instance_frag_shader{ vulkan_instance.device, instance_frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
+        Vulkan_Shader instance_vert_tex_array_shader{ vulkan_instance.device, instance_tex_array_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
+        Vulkan_Shader instance_frag_tex_array_shader{ vulkan_instance.device, instance_tex_array_frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
 
         //Describes the configuration of the vertices the triangles and lines use
-        //v
         VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
         input_assembly_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         input_assembly_info.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; //Triangle from every three vertices, without reuse
@@ -560,13 +564,11 @@ namespace vulvox
             VK_DYNAMIC_STATE_SCISSOR
         };
 
-        //v
         VkPipelineDynamicStateCreateInfo dynamic_state_info{};
         dynamic_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamic_state_info.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
         dynamic_state_info.pDynamicStates = dynamic_states.data();
 
-        //v
         VkPipelineViewportStateCreateInfo viewport_state_info{};
         viewport_state_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
         viewport_state_info.viewportCount = 1;
@@ -574,7 +576,6 @@ namespace vulvox
         viewport_state_info.flags = 0;
 
         //Setup rasterizer stage
-        //v
         VkPipelineRasterizationStateCreateInfo rasterizer_info{};
         rasterizer_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizer_info.depthClampEnable = VK_FALSE; //Discard fragments outside of near/far plane (instead of clamping)
@@ -590,7 +591,6 @@ namespace vulvox
         rasterizer_info.flags = 0;
 
         //Multisample / anti-aliasing stage (disabled)
-        //v
         VkPipelineMultisampleStateCreateInfo multisampling_info{};
         multisampling_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampling_info.sampleShadingEnable = VK_FALSE;
@@ -602,7 +602,6 @@ namespace vulvox
         multisampling_info.flags = 0;
 
         //Enable depth testing
-        //v
         VkPipelineDepthStencilStateCreateInfo depth_stencil{};
         depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
         depth_stencil.depthTestEnable = VK_TRUE; //Discard fragment is they fail depth test
@@ -617,7 +616,6 @@ namespace vulvox
         depth_stencil.back = {}; // Optional
 
         //Handle color blending of the fragments (for example alpha blending) (disabled)
-        //v
         VkPipelineColorBlendAttachmentState color_blend_attachement_info{};
         color_blend_attachement_info.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         color_blend_attachement_info.blendEnable = VK_FALSE; //Disabled

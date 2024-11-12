@@ -32,7 +32,7 @@ namespace vulvox
 
         VmaAllocationCreateInfo image_alloc_info{};
         image_alloc_info.usage = memory_usage;
-        
+
         if (VkResult result = vmaCreateImage(vulkan_instance->allocator, &image_info, &image_alloc_info, &image, &allocation, &allocation_info); result != VK_SUCCESS)
         {
             std::string error_string{ string_VkResult(result) };
@@ -40,6 +40,9 @@ namespace vulvox
         }
     }
 
+    /// <summary>
+    /// Creates an image view for a 2d texture
+    /// </summary>
     void Image::create_image_view()
     {
         VkImageViewCreateInfo view_info{};
@@ -56,6 +59,33 @@ namespace vulvox
         view_info.subresourceRange.levelCount = 1;
         view_info.subresourceRange.baseArrayLayer = 0;
         view_info.subresourceRange.layerCount = 1;
+
+        if (vkCreateImageView(vulkan_instance->device, &view_info, nullptr, &image_view) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create image view!");
+        }
+    }
+
+    /// <summary>
+    /// Creates an image view for a texture array
+    /// </summary>
+    /// <param name="layer_count">amount of layers in the texture array</param>
+    void Image::create_image_view(int layer_count)
+    {
+        VkImageViewCreateInfo view_info{};
+        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        view_info.image = image;
+        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        view_info.format = format;
+
+        //Default color channel mapping (SWIZZLE to default)
+
+        //Single layer image, no mipmapping
+        view_info.subresourceRange.aspectMask = aspect_flags;
+        view_info.subresourceRange.baseMipLevel = 0;
+        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.baseArrayLayer = 0;
+        view_info.subresourceRange.layerCount = layer_count;
 
         if (vkCreateImageView(vulkan_instance->device, &view_info, nullptr, &image_view) != VK_SUCCESS)
         {
