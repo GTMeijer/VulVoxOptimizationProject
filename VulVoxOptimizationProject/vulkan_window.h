@@ -25,7 +25,7 @@ namespace vulvox
         void end_draw();
 
         void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
-        void draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix);
+        void draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix);
         void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
         void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices);
 

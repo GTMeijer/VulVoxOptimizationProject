@@ -167,6 +167,8 @@ namespace vulvox
 
         vkDestroyPipeline(vulkan_instance.device, vertex_pipeline, nullptr);
         vkDestroyPipeline(vulkan_instance.device, instance_pipeline, nullptr);
+        vkDestroyPipeline(vulkan_instance.device, instance_tex_array_pipeline, nullptr);
+        
         vkDestroyPipelineLayout(vulkan_instance.device, pipeline_layout, nullptr);
         vkDestroyRenderPass(vulkan_instance.device, render_pass, nullptr);
 
@@ -187,10 +189,17 @@ namespace vulvox
 
         textures.clear();
 
+        for (auto& [name, texture_array] : texture_arrays)
+        {
+            texture_array.destroy();
+        }
+
+        texture_arrays.clear();
+
+
         //Cleanup descriptor set layout and buffers
         vkDestroyDescriptorSetLayout(vulkan_instance.device, mvp_descriptor_set_layout, nullptr);
-
-        //TODO: Destruction loop for texture layouts
+        vkDestroyDescriptorSetLayout(vulkan_instance.device, texture_descriptor_set_layout, nullptr);
 
         //Clear all the models and their (vertex & index) buffers
         for (auto& [name, model] : models)
@@ -357,9 +366,53 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_model(const std::string model_name, const std::string& texture_name, const int texture_index, const glm::mat4& model_matrix)
+    void Vulkan_Renderer::draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix)
     {
+        if (false)
+        {
+            std::cout << "draw_model_with_texture_array is not yet supported." << std::endl;
+            return;
+        }
 
+        if (!models.contains(model_name))
+        {
+            std::cout << "No model with name " << model_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
+        if (!texture_arrays.contains(texture_array_name))
+        {
+            std::cout << "No texture array with name " << texture_array_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
+        std::array<VkDeviceSize, 1> offsets = { 0 };
+
+        //Bind the uniform buffers
+        //Bind set 0, the MVP buffer
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.tri_descriptor_set[current_frame], 0, nullptr);
+        //Bind set 1, the texture
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_array_descriptor_sets.at(texture_array_name), 0, nullptr);
+
+        //Binding point 0 - mesh vertex buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
+
+        ////Binding point 1 - instance data buffer
+        //vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+
+        ////Binding point 2 - texture array index buffer
+        //vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_texture_index_buffers[current_frame].buffer, offsets.data());
+
+        //Set the push constants (model matrix)
+        vkCmdPushConstants(current_command_buffer, pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &model_matrix);
+
+        //Bind index buffer
+        vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertex_pipeline);
+
+        //Draw command, set vertex and instance counts (we're not using instancing here) and indices
+        vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
     void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
