@@ -62,7 +62,7 @@ namespace vulvox
             return;
         }
 
-        auto [texture_it, succeeded] = textures.try_emplace(name, create_texture_image(path));
+        auto [texture_it, succeeded] = textures.try_emplace(name, Image::create_texture_image(vulkan_instance, command_pool, path));
 
         if (!succeeded)
         {
@@ -73,21 +73,21 @@ namespace vulvox
         create_texture_descriptor_set(name);
     }
 
-    void Vulkan_Renderer::load_texture_array(const std::string& name, const std::filesystem::path& path)
+    void Vulkan_Renderer::load_texture_array(const std::string& name, const std::vector<std::filesystem::path>& paths)
     {
-        //if (texture_arrays.contains(name))
-        //{
-        //    std::cout << "Attempted to load texture array " << name << " but a texture array with the same name was already loaded. Path was: " << path << std::endl;
-        //    return;
-        //}
+        if (texture_arrays.contains(name))
+        {
+            std::cout << "Attempted to load texture array " << name << " but a texture array with the same name was already loaded." << std::endl;
+            return;
+        }
 
-        //auto [index, succeeded] = texture_arrays.insert({ name, Image(path) });
+        auto [texture_it, succeeded] = texture_arrays.try_emplace(name, Image::create_texture_array_image(vulkan_instance, command_pool, paths));
 
-        //if (!succeeded)
-        //{
-        //    std::string error_string = "Failed to load texture array " + name + " with path: " + path.string();
-        //    throw std::runtime_error(error_string);
-        //}
+        if (!succeeded)
+        {
+            std::string error_string = "Failed to load texture array " + name;
+            throw std::runtime_error(error_string);
+        }
     }
 
     void Vulkan_Renderer::init_window(uint32_t width, uint32_t height)
@@ -1111,94 +1111,6 @@ namespace vulvox
 
         //Apply updates, only write descriptor, no copy, so copy variable is 0
         vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
-    }
-
-    Image Vulkan_Renderer::create_texture_image(const std::filesystem::path& texture_path)
-    {
-        int texture_width;
-        int texture_height;
-        int texture_channels;
-
-        //Load texture image, force alpha channel
-        stbi_uc* pixels = stbi_load(texture_path.string().c_str(), &texture_width, &texture_height, &texture_channels, STBI_rgb_alpha);
-        VkDeviceSize image_size = texture_width * texture_height * 4;
-
-        if (!pixels)
-        {
-            throw std::runtime_error("Failed to load texture image!");
-        }
-
-        //Setup host visible staging buffer
-        Buffer staging_buffer;
-        staging_buffer.create(vulkan_instance, image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-
-        //Copy the texture data into the staging buffer
-        memcpy(staging_buffer.allocation_info.pMappedData, pixels, image_size);
-
-        //Image in staging buffer, we can free the image data
-        stbi_image_free(pixels);
-
-        Image texture_image;
-        texture_image.create_image(&vulkan_instance, texture_width, texture_height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_ASPECT_COLOR_BIT, VMA_MEMORY_USAGE_AUTO);
-
-        //Change layout of target image memory to be optimal for writing destination
-        {
-            VkCommandBuffer command_buffer = command_pool.begin_single_time_commands();
-
-            texture_image.transition_image_layout(command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-            command_pool.end_single_time_commands(command_buffer);
-        }
-
-        //Transfer the image data from the staging buffer to the image memory
-        copy_buffer_to_image(staging_buffer.buffer, texture_image.image, texture_image.width, texture_image.height);
-
-        //Change layout of image memory to be optimal for reading by a shader
-        {
-            VkCommandBuffer command_buffer = command_pool.begin_single_time_commands();
-
-            texture_image.transition_image_layout(command_buffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-            command_pool.end_single_time_commands(command_buffer);
-        }
-
-        staging_buffer.destroy(vulkan_instance.allocator);
-
-        texture_image.create_image_view();
-        texture_image.create_texture_sampler();
-
-        return texture_image;
-    }
-
-    void Vulkan_Renderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-    {
-        VkCommandBuffer command_buffer = command_pool.begin_single_time_commands();
-
-        VkBufferImageCopy region{};
-        region.bufferOffset = 0; //Start of pixel values
-        region.bufferRowLength = 0; //Memory layout
-        region.bufferImageHeight = 0; //Memory layout
-
-        //Part of the image we want to copy
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-
-        region.imageOffset = { 0,0,0 };
-        region.imageExtent = { width, height, 1 };
-
-        //Enqueue the image copy operation
-        vkCmdCopyBufferToImage(
-            command_buffer,
-            buffer,
-            image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &region);
-
-        command_pool.end_single_time_commands(command_buffer);
     }
 
     void Vulkan_Renderer::create_sync_objects()

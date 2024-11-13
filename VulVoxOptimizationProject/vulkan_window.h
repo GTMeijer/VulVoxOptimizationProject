@@ -45,7 +45,7 @@ namespace vulvox
 
         void load_model(const std::string& name, const std::filesystem::path& path);
         void load_texture(const std::string& name, const std::filesystem::path& path);
-        void load_texture_array(const std::string& name, const std::filesystem::path& path);
+        void load_texture_array(const std::string& name, const std::vector<std::filesystem::path>& paths);
 
         void unload_model(const std::string& name);
         void unload_texture(const std::string& name);
@@ -92,11 +92,6 @@ namespace vulvox
         void start_record_command_buffer();
         void end_record_command_buffer();
 
-        Image create_texture_image(const std::filesystem::path& texture_path);
-
-        //Image creation help functions
-        void copy_buffer_to_image(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
         VkShaderModule create_shader_module(const std::vector<char>& bytecode);
 
         bool has_stencil_component(VkFormat format) const;
@@ -134,7 +129,6 @@ namespace vulvox
         VkPipeline vertex_pipeline;
 
         ///Stuff that gets send to the shaders
-
 
         //Uniform buffers, data available across shaders
         std::vector<Buffer> uniform_buffers;
