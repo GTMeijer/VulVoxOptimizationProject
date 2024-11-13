@@ -79,6 +79,7 @@ namespace vulvox
         if (VkResult result = vmaCreateImage(vulkan_instance->allocator, &image_info, &image_alloc_info, &image, &allocation, &allocation_info); result != VK_SUCCESS)
         {
             std::string error_string{ string_VkResult(result) };
+            std::cout << error_string << std::endl;
             throw std::runtime_error("Failed to create image!" + error_string);
         }
     }
@@ -196,8 +197,8 @@ namespace vulvox
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         barrier.subresourceRange.baseMipLevel = 0; //No mipmapping
         barrier.subresourceRange.levelCount = 1;
-        barrier.subresourceRange.baseArrayLayer = 0; //No array
-        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = layer_count;
 
         VkPipelineStageFlags source_stage;
         VkPipelineStageFlags destination_stage;
@@ -300,6 +301,7 @@ namespace vulvox
             region.imageOffset = { 0,0,0 };
             region.imageExtent = { width, height, 1 };
 
+            copy_regions.push_back(region);
         }
 
         //Enqueue the image copy operation
@@ -369,8 +371,8 @@ namespace vulvox
 
         std::vector<stbi_uc*> pixel_layers;
 
-        std::vector<int> texture_widths{};
-        std::vector<int> texture_heights{};
+        std::vector<uint32_t> texture_widths{};
+        std::vector<uint32_t> texture_heights{};
 
         int texture_width = 0;
         int texture_height = 0;
@@ -391,8 +393,8 @@ namespace vulvox
             pixel_layers.push_back(pixels);
         }
 
-        if (std::ranges::adjacent_find(texture_widths, std::ranges::not_equal_to()) == texture_widths.end() ||
-            std::ranges::adjacent_find(texture_heights, std::ranges::not_equal_to()) == texture_heights.end())
+        if (std::ranges::adjacent_find(texture_widths, std::ranges::not_equal_to()) != texture_widths.end() ||
+            std::ranges::adjacent_find(texture_heights, std::ranges::not_equal_to()) != texture_heights.end())
         {
             std::cout << "Warning: Given textures for texture array creation are not equal in size! Attempting to use max width and height values." << std::endl;
         }
@@ -400,9 +402,10 @@ namespace vulvox
 
         uint32_t max_width = *std::ranges::max_element(texture_widths.begin(), texture_widths.end());
         uint32_t max_height = *std::ranges::max_element(texture_heights.begin(), texture_heights.end());
+        uint32_t layer_count = static_cast<uint32_t>(pixel_layers.size());
 
-        VkDeviceSize layer_size = max_width * max_height * 4; //RGBA8 assumed
-        VkDeviceSize buffer_size = layer_size * pixel_layers.size();
+        VkDeviceSize max_layer_size = max_width * max_height * 4; //RGBA8 assumed
+        VkDeviceSize buffer_size = max_layer_size * layer_count;
 
         //Setup host visible staging buffer
         Buffer staging_buffer;
@@ -412,6 +415,8 @@ namespace vulvox
         //Copy the texture layers into the staging buffer one by one
         for (int i = 0; i < pixel_layers.size(); i++)
         {
+            VkDeviceSize layer_size = texture_widths[i] * texture_heights[i] * 4; //RGBA8 assumed
+
             memcpy((unsigned char*)staging_buffer.allocation_info.pMappedData + (i * layer_size), pixel_layers[i], layer_size);
         }
 
@@ -424,7 +429,7 @@ namespace vulvox
         pixel_layers.clear();
 
         Image layered_texture_image;
-        layered_texture_image.create_image(&vulkan_instance, max_width, max_height, static_cast<uint32_t>(pixel_layers.size()),
+        layered_texture_image.create_image(&vulkan_instance, max_width, max_height, layer_count,
             VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             VK_IMAGE_ASPECT_COLOR_BIT,
@@ -434,7 +439,7 @@ namespace vulvox
         layered_texture_image.transition_image_layout(command_pool, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         //Transfer the image data from the staging buffer to the image memory
-        copy_buffer_to_image_array(command_pool, staging_buffer.buffer, layered_texture_image.image, layered_texture_image.width, layered_texture_image.height, layered_texture_image.layer_count, layer_size);
+        copy_buffer_to_image_array(command_pool, staging_buffer.buffer, layered_texture_image.image, layered_texture_image.width, layered_texture_image.height, layered_texture_image.layer_count, max_layer_size);
 
         //Change layout of image memory to be optimal for reading by a shader
         layered_texture_image.transition_image_layout(command_pool, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

@@ -10,12 +10,15 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
     camera = Camera(camera_pos, camera_up, camera_direction, renderer.get_aspect_ratio(), glm::radians(45.0f), 0.1f, 1000.0f);
 
     renderer.load_model("Konata", MODEL_PATH);
-    renderer.load_texture("Konata", TEXTURE_PATH);
+    renderer.load_texture("Konata", KONATA_MODAL_TEXTURE_PATH);
 
     konata_matrix = glm::mat4{ 1.0f };
 
     renderer.load_model("cube", CUBE_MODEL_PATH);
     renderer.load_texture("cube", CUBE_TEXTURE_PATH);
+
+    std::vector<std::filesystem::path> texture_paths{ KONATA_TEXTURE_PATH, CUBE_TEXTURE_PATH };
+    renderer.load_texture_array("texture_array_test", texture_paths);
 
     konata_matrices.reserve(25);
     for (size_t i = 0; i < 25; i++)
