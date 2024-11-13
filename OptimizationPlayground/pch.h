@@ -14,4 +14,5 @@ const std::string KONATA_MODAL_TEXTURE_PATH = "../textures/konata_texture.png";
 const std::string KONATA_TEXTURE_PATH = "../textures/konata.png";
 
 const std::string CUBE_MODEL_PATH = "../models/cube-tex.obj";
-const std::string CUBE_TEXTURE_PATH = "../textures/cube-tex.png";
+const std::string CUBE_WHITE_TEXTURE_PATH = "../textures/cube-tex.png";
+const std::string CUBE_BLUE_TEXTURE_PATH = "../textures/cube-tex-blue.png";

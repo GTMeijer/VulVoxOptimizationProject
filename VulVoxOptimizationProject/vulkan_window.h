@@ -43,9 +43,9 @@ namespace vulvox
 
         bool framebuffer_resized = false;
 
-        void load_model(const std::string& name, const std::filesystem::path& path);
-        void load_texture(const std::string& name, const std::filesystem::path& path);
-        void load_texture_array(const std::string& name, const std::vector<std::filesystem::path>& paths);
+        void load_model(const std::string& model_name, const std::filesystem::path& path);
+        void load_texture(const std::string& texture_name, const std::filesystem::path& path);
+        void load_texture_array(const std::string& texture_name, const std::vector<std::filesystem::path>& paths);
 
         void unload_model(const std::string& name);
         void unload_texture(const std::string& name);
@@ -84,8 +84,7 @@ namespace vulvox
         void create_texture_descriptor_set_layout(); //Describes uniform image samplers
         void create_descriptor_sets();
 
-        void create_texture_descriptor_set(const std::string& texture_name);
-        void create_instance_texture_descriptor_set(const std::string& texture_name);
+        VkDescriptorSet create_texture_descriptor_set(const Image& texture);
 
         void create_sync_objects();
 
@@ -155,6 +154,7 @@ namespace vulvox
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;
         std::unordered_map<std::string, VkDescriptorSet> texture_descriptor_sets;
+        std::unordered_map<std::string, VkDescriptorSet> texture_array_descriptor_sets;
         std::unordered_map<std::string, Image> texture_arrays;
 
         MVP model_view_projection;

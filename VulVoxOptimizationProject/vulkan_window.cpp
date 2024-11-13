@@ -37,57 +37,71 @@ namespace vulvox
         return (float)width / (float)height;
     }
 
-    void Vulkan_Renderer::load_model(const std::string& name, const std::filesystem::path& path)
+    void Vulkan_Renderer::load_model(const std::string& model_name, const std::filesystem::path& path)
     {
-        if (models.contains(name))
+        if (models.contains(model_name))
         {
-            std::cout << "Attempted to load model " << name << " but a model with the same name was already loaded. Path was: " << path << std::endl;
+            std::cout << "Attempted to load model " << model_name << " but a model with the same name was already loaded. Path was: " << path << std::endl;
             return;
         }
 
-        auto [model_it, succeeded] = models.try_emplace(name, &vulkan_instance, command_pool, path);
+        auto [model_it, succeeded] = models.try_emplace(model_name, &vulkan_instance, command_pool, path);
 
         if (!succeeded)
         {
-            std::string error_string = "Failed to load model " + name + " with path: " + path.string();
+            std::string error_string = "Failed to load model " + model_name + " with path: " + path.string();
             throw std::runtime_error(error_string);
         }
     }
 
-    void Vulkan_Renderer::load_texture(const std::string& name, const std::filesystem::path& path)
+    void Vulkan_Renderer::load_texture(const std::string& texture_name, const std::filesystem::path& path)
     {
-        if (textures.contains(name))
+        if (textures.contains(texture_name))
         {
-            std::cout << "Attempted to load texture " << name << " but a texture with the same name was already loaded. Path was: " << path << std::endl;
+            std::cout << "Attempted to load texture " << texture_name << " but a texture with the same name was already loaded. Path was: " << path << std::endl;
             return;
         }
 
-        auto [texture_it, succeeded] = textures.try_emplace(name, Image::create_texture_image(vulkan_instance, command_pool, path));
+        auto [texture_it, succeeded] = textures.try_emplace(texture_name, Image::create_texture_image(vulkan_instance, command_pool, path));
 
         if (!succeeded)
         {
-            std::string error_string = "Failed to load texture " + name + " with path: " + path.string();
+            std::string error_string = "Failed to load texture " + texture_name + " with path: " + path.string();
             throw std::runtime_error(error_string);
         }
 
-        create_texture_descriptor_set(name);
+
+        auto [texture_descriptor_it, descriptor_succeeded] = texture_descriptor_sets.try_emplace(texture_name, create_texture_descriptor_set(texture_it->second));
+
+        if (!descriptor_succeeded)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
+        }
     }
 
-    void Vulkan_Renderer::load_texture_array(const std::string& name, const std::vector<std::filesystem::path>& paths)
+    void Vulkan_Renderer::load_texture_array(const std::string& texture_name, const std::vector<std::filesystem::path>& paths)
     {
-        if (texture_arrays.contains(name))
+        if (texture_arrays.contains(texture_name))
         {
-            std::cout << "Attempted to load texture array " << name << " but a texture array with the same name was already loaded." << std::endl;
+            std::cout << "Attempted to load texture array " << texture_name << " but a texture array with the same name was already loaded." << std::endl;
             return;
         }
 
-        auto [texture_it, succeeded] = texture_arrays.try_emplace(name, Image::create_texture_array_image(vulkan_instance, command_pool, paths));
+        auto [texture_it, succeeded] = texture_arrays.try_emplace(texture_name, Image::create_texture_array_image(vulkan_instance, command_pool, paths));
 
         if (!succeeded)
         {
-            std::string error_string = "Failed to load texture array " + name;
+            std::string error_string = "Failed to load texture array " + texture_name;
             throw std::runtime_error(error_string);
         }
+
+        auto [texture_descriptor_it, descriptor_succeeded] = texture_array_descriptor_sets.try_emplace(texture_name, create_texture_descriptor_set(texture_it->second));
+
+        if (!descriptor_succeeded)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
+        }
+
     }
 
     void Vulkan_Renderer::init_window(uint32_t width, uint32_t height)
@@ -307,6 +321,18 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
     {
+        if (!models.contains(model_name))
+        {
+            std::cout << "No model with name " << model_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
+        if (!textures.contains(texture_name))
+        {
+            std::cout << "No texture with name " << texture_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
         //Set the vertex buffers
         std::array<VkDeviceSize, 1> offsets = { 0 };
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
@@ -338,6 +364,18 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
     {
+        if (!models.contains(model_name))
+        {
+            std::cout << "No model with name " << model_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
+        if (!textures.contains(texture_name))
+        {
+            std::cout << "No texture with name " << texture_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
         copy_to_instance_buffer(instance_data);
@@ -366,6 +404,18 @@ namespace vulvox
 
     void Vulkan_Renderer::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices)
     {
+        if (!models.contains(model_name))
+        {
+            std::cout << "No model with name " << model_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
+        if (!texture_arrays.contains(texture_array_name))
+        {
+            std::cout << "No texture array with name " << texture_array_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
         copy_to_instance_buffer(instance_data);
@@ -375,7 +425,7 @@ namespace vulvox
         //Bind set 0, the MVP buffer
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
         //Bind set 1, the texture
-        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_descriptor_sets.at(texture_array_name), 0, nullptr);
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_array_descriptor_sets.at(texture_array_name), 0, nullptr);
 
         //Binding point 0 - mesh vertex buffer
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
@@ -384,7 +434,7 @@ namespace vulvox
         vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
 
         //Binding point 2 - texture array index buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_texture_index_buffers[current_frame].buffer, offsets.data());
 
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -1018,14 +1068,9 @@ namespace vulvox
     /// Allocates a new descriptor for the texture sampler uniform in the triangle shader to point to the given texture
     /// </summary>
     /// <param name="texture_name">Name of the texture to create a descriptor for</param>
-    void Vulkan_Renderer::create_texture_descriptor_set(const std::string& texture_name)
+    VkDescriptorSet Vulkan_Renderer::create_texture_descriptor_set(const Image& texture)
     {
-        auto [texture_descriptor_it, succeeded] = texture_descriptor_sets.try_emplace(texture_name, VkDescriptorSet{});
-
-        if (!succeeded)
-        {
-            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
-        }
+        VkDescriptorSet new_descriptor_set{};
 
         VkDescriptorSetAllocateInfo allocate_info{};
         allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1035,7 +1080,7 @@ namespace vulvox
 
         ///Triangle descriptor sets
         descriptor_sets.tri_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, &texture_descriptor_it->second) != VK_SUCCESS)
+        if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, &new_descriptor_set) != VK_SUCCESS)
         {
             throw std::runtime_error("Failed to allocate descriptor sets!");
         }
@@ -1043,14 +1088,14 @@ namespace vulvox
         VkDescriptorImageInfo image_info{};
         image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-        image_info.imageView = textures.at(texture_name).image_view;
-        image_info.sampler = textures.at(texture_name).sampler;
+        image_info.imageView = texture.image_view;
+        image_info.sampler = texture.sampler;
 
         VkWriteDescriptorSet descriptor_write{};
 
         //Descriptor for the image sampler uniform
         descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write.dstSet = texture_descriptor_it->second; //Binding to update
+        descriptor_write.dstSet = new_descriptor_set; //Binding to update
         descriptor_write.dstBinding = 1; //Binding index equal to shader binding index
         descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
         descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1059,58 +1104,8 @@ namespace vulvox
 
         //Apply updates, only write descriptor, no copy, so copy variable is 0
         vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
-    }
 
-    /// <summary>
-    /// Allocates a new descriptor for the texture sampler uniform in the instance shader to point to the given texture
-    /// </summary>
-    /// <param name="texture_name">Name of the texture to create a descriptor for</param>
-    void Vulkan_Renderer::create_instance_texture_descriptor_set(const std::string& texture_name)
-    {
-        //TODO: Separate for texture array? Do we even need this separate for the instance shader?
-        //TODO: Rename this to array and switch it to actually creating a texture array
-
-        auto [texture_descriptor_it, succeeded] = texture_descriptor_sets.try_emplace(texture_name, VkDescriptorSet{});
-
-        if (succeeded)
-        {
-            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
-        }
-
-        VkDescriptorSetAllocateInfo allocate_info{};
-        allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocate_info.descriptorPool = descriptor_pool;
-        allocate_info.descriptorSetCount = 1;
-        allocate_info.pSetLayouts = &texture_descriptor_set_layout; //texture uniform layout
-
-        ///Triangle descriptor sets
-        descriptor_sets.tri_descriptor_set.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(vulkan_instance.device, &allocate_info, &texture_descriptor_it->second) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to allocate descriptor sets!");
-        }
-
-        std::array<VkWriteDescriptorSet, 1> descriptor_writes{};
-
-        VkDescriptorImageInfo image_info{};
-        image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        image_info.imageView = textures.at(texture_name).image_view;
-        image_info.sampler = textures.at(texture_name).sampler;
-
-        VkWriteDescriptorSet descriptor_write;
-
-        //Descriptor for the image sampler uniform
-        descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptor_write.dstSet = texture_descriptor_it->second; //Binding to update
-        descriptor_write.dstBinding = 1; //Binding index equal to shader binding index
-        descriptor_write.dstArrayElement = 0; //Index of array data to update, no array so zero
-        descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptor_write.descriptorCount = 1; //A single buffer info struct
-        descriptor_write.pImageInfo = &image_info; //This is an image sampler so we provide an image data description
-
-        //Apply updates, only write descriptor, no copy, so copy variable is 0
-        vkUpdateDescriptorSets(vulkan_instance.device, 1, &descriptor_write, 0, nullptr);
+        return new_descriptor_set;
     }
 
     void Vulkan_Renderer::create_sync_objects()

@@ -17,5 +17,7 @@ private:
     glm::mat4 konata_matrix;
 
     std::vector<vulvox::Instance_Data> konata_matrices;
+    std::vector<uint32_t> texture_indices;
+
 };
 

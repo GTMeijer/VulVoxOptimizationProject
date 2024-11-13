@@ -15,9 +15,9 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
     konata_matrix = glm::mat4{ 1.0f };
 
     renderer.load_model("cube", CUBE_MODEL_PATH);
-    renderer.load_texture("cube", CUBE_TEXTURE_PATH);
+    renderer.load_texture("cube", CUBE_WHITE_TEXTURE_PATH);
 
-    std::vector<std::filesystem::path> texture_paths{ KONATA_TEXTURE_PATH, CUBE_TEXTURE_PATH };
+    std::vector<std::filesystem::path> texture_paths{ CUBE_WHITE_TEXTURE_PATH, CUBE_BLUE_TEXTURE_PATH };
     renderer.load_texture_array("texture_array_test", texture_paths);
 
     konata_matrices.reserve(25);
@@ -31,6 +31,12 @@ Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
 
             konata_matrices.push_back(instance_data);
         }
+    }
+
+
+    for (size_t i = 0; i < konata_matrices.size(); i++)
+    {
+        texture_indices.push_back(i % 2);
     }
 }
 
@@ -49,22 +55,28 @@ void Scene::update(float delta_time)
 
     if (glfwGetKey(renderer->get_window(), GLFW_KEY_KP_ADD) == GLFW_PRESS)
     {
+        const int x_count = 251;
+        const int y_count = 251;
         num_layers++;
 
-        konata_matrices.reserve(25 * 25 * num_layers);
+        konata_matrices.reserve(x_count * y_count * num_layers);
+        texture_indices.reserve(x_count * y_count * num_layers);
 
-        for (size_t i = 0; i < 250; i++)
+        for (size_t i = 0; i < y_count; i++)
         {
-            for (size_t j = 0; j < 250; j++)
+            for (size_t j = 0; j < x_count; j++)
             {
                 vulvox::Instance_Data instance_data;
                 instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, (num_layers + 1) * 10.0f + 125.0f, j * 10.f));
                 instance_data.instance_model_matrix = glm::scale(instance_data.instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
 
                 konata_matrices.push_back(instance_data);
+
+                texture_indices.push_back(((i * y_count) + j) % 2);
             }
         }
     }
+
 
     camera.set_aspect_ratio(renderer->get_aspect_ratio());
     renderer->set_camera(camera.get_mvp());
@@ -84,5 +96,8 @@ void Scene::draw()
         }
     }
 
-    renderer->draw_instanced("cube", "cube", konata_matrices);
+
+
+    //renderer->draw_instanced("cube", "cube", konata_matrices);
+    renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
 }
