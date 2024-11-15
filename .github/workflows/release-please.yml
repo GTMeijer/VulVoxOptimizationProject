@@ -39,7 +39,16 @@ jobs:
         
       - name: Release Windows
         uses: googleapis/release-please-action@v4
+        id: release_windows
         with:
           token: ${{secrets.VUL_RELEASE_TOKEN}}
           path: x64\Release
+          #config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
           release-type: simple
+
+      - name: Print release output
+        continue-on-error: true
+        run: |
+            echo "Release outputs:"
+            echo "${{ toJson(steps.release_windows.outputs) }}"
