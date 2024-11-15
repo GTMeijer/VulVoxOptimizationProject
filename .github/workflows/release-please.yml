@@ -37,6 +37,9 @@ jobs:
         working-directory: .\
         run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
         
+      - name: zip build
+        run: zip -r windows-build.zip x64/Release
+        
       - name: Release Windows
         uses: googleapis/release-please-action@v4
         id: release_windows
@@ -50,10 +53,7 @@ jobs:
         run: |
             echo "Release outputs:"
             echo "${{ toJson(steps.release_windows.outputs) }}"
-
-      - name: zip build
-        run: zip -r windows-build.zip x64/Release
-        
+ 
       - name: Upload Release Artifact
         env:
           GITHUB_TOKEN: ${{ secrets.VUL_RELEASE_TOKEN }}
