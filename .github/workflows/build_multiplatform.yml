@@ -1,0 +1,35 @@
+name: Build on multiple platforms
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    name: Build on Windows-latests
+    steps:
+      #checkout code
+      - name: Checkout code
+        id: checkout_code
+        uses: actions/checkout@v4
+
+      #Setup Vulkan SDK
+      - name: Prepare Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.0
+        with:
+          vulkan-query-version: latest
+          vulkan-components: Vulkan-Headers, Vulkan-Loader
+          vulkan-use-cache: true
+
+      #Locate MSBuild.eze and add to PATH
+      - name: Add MSBuild to PATH
+        id: setup_msbuild
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+          
+      #Run MSBuild Release
+      - name: Run MSBuild Release
+        id: run_msbuild_release
+        working-directory: .\
+        run: msbuild.exe .\VulVoxOptimizationProject\  -property:Configuration=Release
