@@ -41,10 +41,11 @@ jobs:
         with:
           name: windows-release-artifact
           path: x64/Release
-        
-      - name: zip build
-        run: zip -r windows-build.zip x64/Release
-        
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release-artifact
+          
       - name: Release Windows
         uses: googleapis/release-please-action@v4
         id: release_windows
@@ -62,5 +63,5 @@ jobs:
       - name: Upload Release Artifact
         env:
           GITHUB_TOKEN: ${{ secrets.VUL_RELEASE_TOKEN }}
-        run: gh release upload ${{ needs.release-please.outputs.windows-release--tag_name }} windows-build.zip
+        run: gh release upload ${{ needs.release-please.outputs.windows-release--tag_name }} windows-release-artifact.zip
 
