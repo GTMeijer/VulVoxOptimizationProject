@@ -42,8 +42,6 @@ jobs:
         id: release_windows
         with:
           token: ${{secrets.VUL_RELEASE_TOKEN}}
-          path: x64\Release
-          #config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           release-type: simple
 
@@ -52,3 +50,12 @@ jobs:
         run: |
             echo "Release outputs:"
             echo "${{ toJson(steps.release_windows.outputs) }}"
+
+      - name: zip build
+        run: zip -r windows-build.zip x64/Release
+        
+      - name: Upload Release Artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.VUL_RELEASE_TOKEN }}
+        run: gh release upload ${{ needs.release-please.outputs.windows-release--tag_name }} windows-build.zip
+
