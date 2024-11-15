@@ -1,10 +1,10 @@
-name: Build on multiple platforms
+name: Build and upload release on multiple platforms
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
+  release-windows:
     runs-on: windows-latest
     name: Build on Windows-latests
     steps:
@@ -31,4 +31,10 @@ jobs:
       - name: Run MSBuild Release
         id: run_msbuild_release
         working-directory: .\
-        run: msbuild.exe .\  -property:Configuration=Release -property:Platform=x64
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
+
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifact
+          path: x64/Release
