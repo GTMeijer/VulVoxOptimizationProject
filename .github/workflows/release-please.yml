@@ -1,10 +1,14 @@
-name: Build on multiple platforms
+name: Release on multiple platforms
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  build-windows:
+  release-windows:
     runs-on: windows-latest
     name: Build on Windows-latests
     steps:
@@ -31,4 +35,11 @@ jobs:
       - name: Run MSBuild Release
         id: run_msbuild_release
         working-directory: .\
-        run: msbuild.exe .\  -property:Configuration=Release -property:Platform=x64
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
+        
+      - name: Release Windows
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{secrets.VUL_RELEASE_TOKEN}}
+          path: x64\Release
+          release-type: simple
