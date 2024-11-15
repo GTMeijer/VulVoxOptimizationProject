@@ -32,4 +32,4 @@ jobs:
       - name: Run MSBuild Release
         id: run_msbuild_release
         working-directory: .\
-        run: msbuild.exe .\VulVoxOptimizationProject\  -property:Configuration=Release -property:Platform=x64
+        run: msbuild.exe .\  -property:Configuration=Release -property:Platform=x64
