@@ -40,5 +40,7 @@
 # Build directories
 /x64
 /VulVoxOptimizationProject/x64
-/.vs
 /OptimizationPlayground/x64
+*/out
+/.vs
+*/.vs

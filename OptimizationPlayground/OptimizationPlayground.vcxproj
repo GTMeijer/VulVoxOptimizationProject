@@ -52,13 +52,13 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)includes\Vulkan\1.3.290.0\Include;$(SolutionDir)includes\glfw-3.4\glfw-3.4.bin.WIN64\include;$(SolutionDir)includes\glm;$(SolutionDir)includes\stb-image;$(SolutionDir)includes\tinyobjloader;$(SolutionDir)includes\VulkanMemoryAllocator-3.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)includes\Vulkan\1.3.290.0\Include;$(SolutionDir)includes\glfw-3.4\WIN64\include;$(SolutionDir)includes\glm;$(SolutionDir)includes\stb-image;$(SolutionDir)includes\tinyobjloader;$(SolutionDir)includes\VulkanMemoryAllocator-3.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;VulVoxOptimizationProject.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(solutiondir)includes\glfw-3.4\glfw-3.4.bin.WIN64\lib-vc2022;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(solutiondir)includes\glfw-3.4\WIN64\lib-vc2022;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -72,7 +72,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)includes\Vulkan\1.3.290.0\Include;$(SolutionDir)includes\glfw-3.4\glfw-3.4.bin.WIN64\include;$(SolutionDir)includes\glm;$(SolutionDir)includes\stb-image;$(SolutionDir)includes\tinyobjloader;$(SolutionDir)includes\VulkanMemoryAllocator-3.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)includes\Vulkan\1.3.290.0\Include;$(SolutionDir)includes\glfw-3.4\WIN64\include;$(SolutionDir)includes\glm;$(SolutionDir)includes\stb-image;$(SolutionDir)includes\tinyobjloader;$(SolutionDir)includes\VulkanMemoryAllocator-3.1.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -80,7 +80,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;VulVoxOptimizationProject.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(solutiondir)includes\glfw-3.4\glfw-3.4.bin.WIN64\lib-vc2022;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(solutiondir)includes\glfw-3.4\WIN64\lib-vc2022;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
