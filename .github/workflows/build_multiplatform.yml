@@ -6,7 +6,7 @@ on:
 jobs:
   release-windows:
     runs-on: windows-latest
-    name: Build on Windows-latests
+    name: Build on Windows-latest
     steps:
       #checkout code
       - name: Checkout code
@@ -38,3 +38,28 @@ jobs:
         with:
           name: windows-release-artifact
           path: x64/Release
+
+  release-macOS:
+    runs-on: macos-latest
+    name: Build on MacOS-latest
+    steps:
+      #checkout code
+      - name: Checkout code
+        id: checkout_code
+        uses: actions/checkout@v4
+
+      #Setup Vulkan SDK
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.1.1
+        with:
+         version: latest
+         cache: true
+
+      - name: Install glfw
+        run: brew install glfw
+      
+      - name: Create build directory
+        run: cmake -S VulVoxOptimizationProject/ -B build/ -D CMAKE_BUILD_TYPE=Release
+
+      - name: Build project
+        run: cmake --build build/ --config Release
