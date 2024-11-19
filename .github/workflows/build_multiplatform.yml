@@ -77,6 +77,7 @@ jobs:
             test -f vulkan_sdk.zip
             ls -lh vulkan_sdk.zip >&2
             echo "Unzipping Vulkan SDK"
+            mkdir -p "$VULKAN_SDK_INSTALLER"
             unzip -q vulkan_sdk.zip -d "$VULKAN_SDK_INSTALLER"
             ls -lh "$VULKAN_SDK_INSTALLER" >&2
             du -hs $VULKAN_SDK_INSTALLER
