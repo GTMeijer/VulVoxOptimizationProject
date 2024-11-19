@@ -4,41 +4,41 @@ on:
   workflow_dispatch:
 
 jobs:
-  release-windows:
-    runs-on: windows-latest
-    name: Build on Windows-latest
-    steps:
-      #checkout code
-      - name: Checkout code
-        id: checkout_code
-        uses: actions/checkout@v4
-
-      #Setup Vulkan SDK
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.1.1
-        with:
-         version: latest
-         cache: true
-
-      #Locate MSBuild.eze and add to PATH
-      - name: Add MSBuild to PATH
-        id: setup_msbuild
-        uses: microsoft/setup-msbuild@v2
-        with:
-          msbuild-architecture: x64
-          
-      #Run MSBuild Release
-      - name: Run MSBuild Release
-        id: run_msbuild_release
-        working-directory: .\
-        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
-
-      #Upload release build as artifact
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-release-artifact
-          path: x64/Release
-
+  # release-windows:
+  #   runs-on: windows-latest
+  #   name: Build on Windows-latest
+  #   steps:
+  #     #checkout code
+  #     - name: Checkout code
+  #       id: checkout_code
+  #       uses: actions/checkout@v4
+  #
+  #     #Setup Vulkan SDK
+  #     - name: Install Vulkan SDK
+  #       uses: humbletim/install-vulkan-sdk@v1.1.1
+  #       with:
+  #        version: latest
+  #        cache: true
+  #
+  #     #Locate MSBuild.eze and add to PATH
+  #     - name: Add MSBuild to PATH
+  #       id: setup_msbuild
+  #       uses: microsoft/setup-msbuild@v2
+  #       with:
+  #         msbuild-architecture: x64
+  #        
+  #     #Run MSBuild Release
+  #     - name: Run MSBuild Release
+  #       id: run_msbuild_release
+  #       working-directory: .\
+  #       run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
+  #
+  #     #Upload release build as artifact
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: windows-release-artifact
+  #         path: x64/Release
+  #
   release-macOS:
     runs-on: macos-latest
     name: Build on MacOS-latest
@@ -49,11 +49,36 @@ jobs:
         uses: actions/checkout@v4
 
       #Setup Vulkan SDK
+      - name: Check Vulkan SDK version
+        shell: bash
+        #uses: humbletim/install-vulkan-sdk@v1.1.1
+        #with:
+        # version: latest
+        # cache: true
+        run: |
+          url=https://vulkan.lunarg.com/sdk/latest/mac.txt
+          echo "retrieving latest version from url: $url"
+          VULKAN_SDK_VERSION = $(curl -sL $url)
+          echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
+          VULKAN_SDK=${VULKAN_SDK:-$basedir/VULKAN_SDK}
+
+      - name: Download Vulkan SDK
+        shell: bash
+        run: |
+            #https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/$os/$filename?Human=true
+            curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $url || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $url >&2 ; exit 32 ; }
+            test -f ${filename}.tmp
+            mv -v ${filename}.tmp ${filename} 
+            ls -lh $filename >&2
+
       - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.1.1
-        with:
-         version: latest
-         cache: true
+        shell: bash
+        run: |
+          test -d $VULKAN_SDK && test -f vulkan_sdk.dmg
+          MOUNTPOINT=$(hdiutil attach vulkan_sdk.dmg | grep -i vulkansdk | awk 'END {print $NF}')
+          echo "Installing from mountpoint: $(MOUNTPOINT)"
+          sudo $MOUNTPOINT/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
+          du -hs $sdk_temp
 
       - name: Install glfw
         run: brew install glfw
