@@ -67,7 +67,7 @@ jobs:
         run: |
             VULKAN_SDK_VERSION=${{env.VULKAN_SDK_VERSION}}
             VERSION_URL=${{env.VERSION_URL}}
-            VULKAN_SDK_INSTALLER=-$PWD/VULKAN_SDK_INSTALLER
+            VULKAN_SDK_INSTALLER=$PWD/VULKAN_SDK_INSTALLER
             echo "VULKAN_SDK_INSTALLER=$VULKAN_SDK_INSTALLER" >> $GITHUB_ENV
             SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true"
             echo "SDK_URL=$SDK_URL" >> $GITHUB_ENV
@@ -85,11 +85,16 @@ jobs:
         shell: bash
         run: |
           VULKAN_SDK_INSTALLER=${{env.VULKAN_SDK_INSTALLER}}
-          VULKAN_SDK=-$PWD/VULKAN_SDK
+          VULKAN_SDK=$PWD/VULKAN_SDK
           echo "Installing from unzipped folder: $VULKAN_SDK_INSTALLER"
-          sudo $VULKAN_SDK/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$sdk_temp" --accept-licenses --default-answer --confirm-command install
+          sudo $VULKAN_SDK_INSTALLER/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
           echo "Cleaning installer files"
-          sudo rm -rf "VULKAN_SDK_INSTALLER"
+          sudo rm -rf "$VULKAN_SDK_INSTALLER"
+          #Check install
+          if [ ! -d "$VULKAN_SDK" ]; then
+          echo "Error: Vulkan SDK installation failed." >&2
+          exit 1
+          fi
           
       - name: Install glfw
         run: brew install glfw
