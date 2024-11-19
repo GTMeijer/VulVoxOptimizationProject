@@ -56,9 +56,9 @@ jobs:
         # version: latest
         # cache: true
         run: |
-          url=https://vulkan.lunarg.com/sdk/latest/mac.txt
+          VERSION_URL=https://vulkan.lunarg.com/sdk/latest/mac.txt
           echo "retrieving latest version from url: $url"
-          VULKAN_SDK_VERSION = $(curl -sL $url)
+          VULKAN_SDK_VERSION=$(curl -sL $url)
           echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
           VULKAN_SDK=${VULKAN_SDK:-$basedir/VULKAN_SDK}
 
@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
             #https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/$os/$filename?Human=true
-            curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $url || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $url >&2 ; exit 32 ; }
+            curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $url || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
             test -f ${filename}.tmp
             mv -v ${filename}.tmp ${filename} 
             ls -lh $filename >&2
