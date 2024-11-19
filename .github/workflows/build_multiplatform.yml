@@ -67,6 +67,7 @@ jobs:
       - name: Download Vulkan SDK
         shell: bash
         run: |
+            VULKAN_SDK_VERSION=${{env.VULKAN_SDK_VERSION}}
             SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true"
             VERSION_URL= ${{env.VERSION_URL}}
             echo "SDK_URL=$SDK_URL" >> $GITHUB_ENV
