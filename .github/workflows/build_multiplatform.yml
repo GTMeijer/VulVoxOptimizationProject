@@ -46,6 +46,7 @@ jobs:
       VULKAN_SDK_VERSION: ""
       VULKAN_SDK: ""
       VERSION_URL: "https://vulkan.lunarg.com/sdk/latest/mac.txt"
+      SDK_URL: ""
     steps:
       #checkout code
       - name: Checkout code
@@ -53,19 +54,21 @@ jobs:
         uses: actions/checkout@v4
 
       #Setup Vulkan SDK
-      - name: Download and install Vulkan SDK
+      - name: Check Vulkan SDK Version
         shell: bash
         run: |
           echo "retrieving latest version from url: $VERSION_URL"
-          echo VULKAN_SDK_VERSION=$(curl -sL $VERSION_URL) >> $GITHUB_ENV
+          VULKAN_SDK_VERSION=$(curl -sL $VERSION_URL)
           echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
+          basedir=$PWD
           echo "VULKAN_SDK=-$basedir/VULKAN_SDK" >> $GITHUB_ENV
-          echo $VULKAN_SDK
+          echo "VULKAN_SDK_VERSION=$VULKAN_SDK_VERSION" >> $GITHUB_ENV
 
       - name: Download Vulkan SDK
         shell: bash
         run: |
-            echo SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true)" >> $GITHUB_ENV
+            SDK_URL=$("https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true")
+            echo "SDK_URL=$SDK_URL" >> $GITHUB_ENV
             echo "Downloading Vulkan SDK $VULKAN_SDK_VERSION from $SDK_URL"
             curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
             test -f vulkan_sdk.dmg.tmp
