@@ -78,11 +78,12 @@ jobs:
       - name: Install Vulkan SDK
         shell: bash
         run: |
+          VULKAN_SDK=${{VULKAN_SDK}}
           test -d $VULKAN_SDK && test -f vulkan_sdk.dmg
           MOUNTPOINT=$(hdiutil attach vulkan_sdk.dmg | grep -i vulkansdk | awk 'END {print $NF}')
           echo "Installing from mountpoint: $MOUNTPOINT"
           sudo $MOUNTPOINT/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
-          du -hs $sdk_temp
+          du -hs $VULKAN_SDK
 
       - name: Install glfw
         run: brew install glfw
