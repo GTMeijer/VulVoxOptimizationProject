@@ -68,8 +68,8 @@ jobs:
         shell: bash
         run: |
             VULKAN_SDK_VERSION=${{env.VULKAN_SDK_VERSION}}
+            VERSION_URL=${{env.VERSION_URL}}
             SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true"
-            VERSION_URL= ${{env.VERSION_URL}}
             echo "SDK_URL=$SDK_URL" >> $GITHUB_ENV
             echo "Downloading Vulkan SDK $VULKAN_SDK_VERSION from $SDK_URL"
             curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
