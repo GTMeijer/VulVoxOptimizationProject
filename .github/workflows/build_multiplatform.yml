@@ -53,18 +53,18 @@ jobs:
         uses: actions/checkout@v4
 
       #Setup Vulkan SDK
-      - name: Check Vulkan SDK version
+      - name: Download and install Vulkan SDK
         shell: bash
         run: |
           echo "retrieving latest version from url: $VERSION_URL"
-          echo $(curl -sL $VERSION_URL) >> ${{VULKAN_SDK_VERSION}}
-          echo "latest version for MacOS is: ${{VULKAN_SDK_VERSION}}"
-          echo "-$basedir/VULKAN_SDK" >> VULKAN_SDK
+          echo $(curl -sL $VERSION_URL) >> "$VULKAN_SDK_VERSION"
+          echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
+          echo "-$basedir/VULKAN_SDK" >> "$VULKAN_SDK"
 
       - name: Download Vulkan SDK
         shell: bash
         run: |
-            echo "https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true)" >> SDK_URL
+            echo "https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true)" >> $"SDK_URL"
             echo "Downloading Vulkan SDK $VULKAN_SDK_VERSION from $SDK_URL"
             curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
             test -f vulkan_sdk.dmg.tmp
