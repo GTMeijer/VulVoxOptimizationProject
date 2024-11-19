@@ -60,7 +60,6 @@ jobs:
           echo "retrieving latest version from url: $VERSION_URL"
           VULKAN_SDK_VERSION=$(curl -sL $VERSION_URL)
           echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
-          basedir=$PWD
           echo "VULKAN_SDK_VERSION=$VULKAN_SDK_VERSION" >> $GITHUB_ENV
 
       - name: Download and unzip Vulkan SDK
@@ -68,7 +67,7 @@ jobs:
         run: |
             VULKAN_SDK_VERSION=${{env.VULKAN_SDK_VERSION}}
             VERSION_URL=${{env.VERSION_URL}}
-            VULKAN_SDK_INSTALLER=-$basedir/VULKAN_SDK_INSTALLER
+            VULKAN_SDK_INSTALLER=-$PWD/VULKAN_SDK_INSTALLER
             echo "VULKAN_SDK_INSTALLER=$VULKAN_SDK_INSTALLER" >> $GITHUB_ENV
             SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true"
             echo "SDK_URL=$SDK_URL" >> $GITHUB_ENV
