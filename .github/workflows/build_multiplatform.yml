@@ -57,8 +57,8 @@ jobs:
         shell: bash
         run: |
           echo "retrieving latest version from url: $VERSION_URL"
-          echo $(curl -sL $VERSION_URL) >> $VULKAN_SDK_VERSION
-          echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
+          echo $(curl -sL $VERSION_URL) >> ${{VULKAN_SDK_VERSION}}
+          echo "latest version for MacOS is: ${{VULKAN_SDK_VERSION}}"
           echo "-$basedir/VULKAN_SDK" >> VULKAN_SDK
 
       - name: Download Vulkan SDK
