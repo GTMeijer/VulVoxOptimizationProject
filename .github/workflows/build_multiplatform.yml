@@ -42,6 +42,10 @@ jobs:
   release-macOS:
     runs-on: macos-latest
     name: Build on MacOS-latest
+    env:
+      VULKAN_SDK_VERSION: ""
+      VULKAN_SDK: ""
+      VERSION_URL: "https://vulkan.lunarg.com/sdk/latest/mac.txt"
     steps:
       #checkout code
       - name: Checkout code
@@ -51,33 +55,28 @@ jobs:
       #Setup Vulkan SDK
       - name: Check Vulkan SDK version
         shell: bash
-        #uses: humbletim/install-vulkan-sdk@v1.1.1
-        #with:
-        # version: latest
-        # cache: true
         run: |
-          VERSION_URL=https://vulkan.lunarg.com/sdk/latest/mac.txt
           echo "retrieving latest version from url: $VERSION_URL"
-          VULKAN_SDK_VERSION=$(curl -sL $VERSION_URL)
+          echo $(curl -sL $VERSION_URL) >> $VULKAN_SDK_VERSION
           echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
-          VULKAN_SDK=${VULKAN_SDK:-$basedir/VULKAN_SDK}
+          echo "-$basedir/VULKAN_SDK" >> VULKAN_SDK
 
       - name: Download Vulkan SDK
         shell: bash
         run: |
-            SDK_URL=$(https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true)
+            echo "https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true)" >> SDK_URL
             echo "Downloading Vulkan SDK $VULKAN_SDK_VERSION from $SDK_URL"
             curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
-            test -f ${filename}.tmp
-            mv -v ${filename}.tmp ${filename} 
-            ls -lh $filename >&2
+            test -f vulkan_sdk.dmg.tmp
+            mv -v vulkan_sdk.dmg.tmp vulkan_sdk.dmg
+            ls -lh vulkan_sdk.dmg >&2
 
       - name: Install Vulkan SDK
         shell: bash
         run: |
           test -d $VULKAN_SDK && test -f vulkan_sdk.dmg
           MOUNTPOINT=$(hdiutil attach vulkan_sdk.dmg | grep -i vulkansdk | awk 'END {print $NF}')
-          echo "Installing from mountpoint: $(MOUNTPOINT)"
+          echo "Installing from mountpoint: $MOUNTPOINT"
           sudo $MOUNTPOINT/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
           du -hs $sdk_temp
 
