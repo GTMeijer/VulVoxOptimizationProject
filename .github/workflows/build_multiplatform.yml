@@ -76,7 +76,7 @@ jobs:
             curl --fail-with-body -s -L -o vulkan_sdk.zip $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
             test -f vulkan_sdk.zip
             ls -lh vulkan_sdk.zip >&2
-            echo "Unzipping Vulkan SDK"
+            echo "Unzipping Vulkan SDK into $VULKAN_SDK_INSTALLER"
             mkdir -p "$VULKAN_SDK_INSTALLER"
             unzip -q vulkan_sdk.zip -d "$VULKAN_SDK_INSTALLER"
             ls -lh "$VULKAN_SDK_INSTALLER" >&2
@@ -86,7 +86,7 @@ jobs:
         shell: bash
         run: |
           VULKAN_SDK_INSTALLER=${{env.VULKAN_SDK_INSTALLER}}
-          VULKAN_SDK=-$basedir/VULKAN_SDK
+          VULKAN_SDK=-$PWD/VULKAN_SDK
           echo "Installing from unzipped folder: $VULKAN_SDK_INSTALLER"
           sudo $VULKAN_SDK/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$sdk_temp" --accept-licenses --default-answer --confirm-command install
           echo "Cleaning installer files"
