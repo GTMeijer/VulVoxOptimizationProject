@@ -78,7 +78,7 @@ jobs:
       - name: Install Vulkan SDK
         shell: bash
         run: |
-          VULKAN_SDK=${{VULKAN_SDK}}
+          VULKAN_SDK=${{env.VULKAN_SDK}}
           test -d $VULKAN_SDK && test -f vulkan_sdk.dmg
           MOUNTPOINT=$(hdiutil attach vulkan_sdk.dmg | grep -i vulkansdk | awk 'END {print $NF}')
           echo "Installing from mountpoint: $MOUNTPOINT"
