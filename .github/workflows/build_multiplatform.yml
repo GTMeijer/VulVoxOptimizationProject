@@ -107,3 +107,9 @@ jobs:
 
       - name: Build project
         run: cmake --build build/ --config Release
+
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifact
+          path: ./build
