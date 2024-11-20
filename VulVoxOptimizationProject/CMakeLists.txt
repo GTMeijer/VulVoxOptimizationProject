@@ -77,4 +77,4 @@ elseif(UNIX)
 
 endif()
 
-target_include_directories(VulVoxOptimizationProject PUBLIC ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+target_include_directories(VulVoxOptimizationProject SYSTEM PUBLIC ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
