@@ -4,41 +4,41 @@ on:
   workflow_dispatch:
 
 jobs:
-  # release-windows:
-  #   runs-on: windows-latest
-  #   name: Build on Windows-latest
-  #   steps:
-  #     #checkout code
-  #     - name: Checkout code
-  #       id: checkout_code
-  #       uses: actions/checkout@v4
-  #
-  #     #Setup Vulkan SDK
-  #     - name: Install Vulkan SDK
-  #       uses: humbletim/install-vulkan-sdk@v1.1.1
-  #       with:
-  #        version: latest
-  #        cache: true
-  #
-  #     #Locate MSBuild.eze and add to PATH
-  #     - name: Add MSBuild to PATH
-  #       id: setup_msbuild
-  #       uses: microsoft/setup-msbuild@v2
-  #       with:
-  #         msbuild-architecture: x64
-  #        
-  #     #Run MSBuild Release
-  #     - name: Run MSBuild Release
-  #       id: run_msbuild_release
-  #       working-directory: .\
-  #       run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
-  #
-  #     #Upload release build as artifact
-  #     - uses: actions/upload-artifact@v4
-  #       with:
-  #         name: windows-release-artifact
-  #         path: x64/Release
-  #
+  release-windows:
+    runs-on: windows-latest
+    name: Build on Windows-latest
+    steps:
+      #checkout code
+      - name: Checkout code
+        id: checkout_code
+        uses: actions/checkout@v4
+  
+      #Setup Vulkan SDK
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.1.1
+        with:
+         version: latest
+         cache: true
+  
+      #Locate MSBuild.eze and add to PATH
+      - name: Add MSBuild to PATH
+        id: setup_msbuild
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+         
+      #Run MSBuild Release
+      - name: Run MSBuild Release
+        id: run_msbuild_release
+        working-directory: .\
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
+  
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifact
+          path: x64/Release
+  
   release-macOS:
     runs-on: macos-latest
     name: Build on MacOS-latest
