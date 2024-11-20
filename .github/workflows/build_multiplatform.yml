@@ -95,7 +95,7 @@ jobs:
           echo "Error: Vulkan SDK installation failed." >&2
           exit 1
           fi
-          ls -h $VULKAN_SDK
+          #ls -h $VULKAN_SDK
           cd $VULKAN_SDK
           sudo ./install_vulkan.py
           

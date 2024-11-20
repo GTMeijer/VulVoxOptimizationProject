@@ -12,10 +12,11 @@ add_library(VulVoxOptimizationProject STATIC ${SOURCE_FILES})
 
 find_package(Vulkan REQUIRED)
 
+set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../includes")
+
 #Platform specific settings
 if(WIN32)
     #Windows specific includes and libraries
-    set(INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../includes")
 
     set(INCLUDE_DIRS
             "${INCLUDE_DIR}/glfw-3.4/WIN64/include"
