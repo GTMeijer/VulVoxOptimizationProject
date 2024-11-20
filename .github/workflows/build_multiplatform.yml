@@ -95,6 +95,7 @@ jobs:
           echo "Error: Vulkan SDK installation failed." >&2
           exit 1
           fi
+          sudo $VULKAN_SDK/install_vulkan.py
           
       - name: Install glfw
         run: brew install glfw
