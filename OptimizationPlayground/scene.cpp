@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "scene.h"
 
-Scene::Scene(vulvox::Vulkan_Renderer& renderer) : renderer(&renderer)
+Scene::Scene(vulvox::Renderer& renderer) : renderer(&renderer)
 {
     glm::vec3 camera_pos{ 0.0f, 0.0f, 0.0f };
     glm::vec3 camera_up{ 0.0f, 1.0f, 0.0f };

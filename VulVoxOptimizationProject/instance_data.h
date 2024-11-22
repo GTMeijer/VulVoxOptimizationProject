@@ -18,6 +18,5 @@ namespace vulvox
         /// </summary>
         /// <returns></returns>
         static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions(uint32_t binding);
-
     };
 }

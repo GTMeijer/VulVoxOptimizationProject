@@ -2,7 +2,7 @@
 class Scene
 {
 public:
-    explicit Scene(vulvox::Vulkan_Renderer& renderer);
+    explicit Scene(vulvox::Renderer& renderer);
 
     void update(float delta_time);
     void draw();
@@ -11,7 +11,7 @@ private:
 
     int num_layers = 1;
 
-    vulvox::Vulkan_Renderer* renderer;
+    vulvox::Renderer* renderer;
     Camera camera;
 
     glm::mat4 konata_matrix;

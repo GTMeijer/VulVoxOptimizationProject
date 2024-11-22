@@ -8,7 +8,7 @@ int main()
 
     try
     {
-        vulvox::Vulkan_Renderer renderer;
+        vulvox::Renderer renderer;
 
         renderer.init(width, height);
 
@@ -32,7 +32,7 @@ int main()
             renderer.end_draw();
         }
 
-        renderer.cleanup();
+        renderer.destroy();
     }
     catch (const std::exception& ex)
     {

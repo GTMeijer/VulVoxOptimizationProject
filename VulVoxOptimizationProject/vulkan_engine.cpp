@@ -1,115 +1,17 @@
 #include "pch.h"
-#include "vulkan_window.h"
+#include "vulkan_engine.h"
 
 namespace vulvox
 {
-    Vulkan_Renderer::Vulkan_Renderer() : swap_chain(&vulkan_instance)
+    Vulkan_Engine::Vulkan_Engine() : swap_chain(&vulkan_instance)
     {
-
     }
 
-    bool Vulkan_Renderer::should_close() const
+    Vulkan_Engine::~Vulkan_Engine()
     {
-        return glfwWindowShouldClose(window);
     }
 
-    void Vulkan_Renderer::update_uniform_buffer(uint32_t current_image)
-    {
-        memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &model_view_projection, sizeof(model_view_projection));
-    }
-
-    void Vulkan_Renderer::set_camera(const MVP& camera_matrix)
-    {
-        model_view_projection = camera_matrix;
-    }
-
-    GLFWwindow* Vulkan_Renderer::get_window()
-    {
-        return window;
-    }
-
-    void Vulkan_Renderer::resize_window(const uint32_t new_width, const uint32_t new_height)
-    {
-        this->width = new_width;
-        this->height = new_height;
-
-        //Will also call the resize callback so the render engine will recreate the swapchain
-        glfwSetWindowSize(window, new_width, new_height);
-    }
-
-    float Vulkan_Renderer::get_aspect_ratio() const
-    {
-        return (float)width / (float)height;
-    }
-
-    void Vulkan_Renderer::load_model(const std::string& model_name, const std::filesystem::path& path)
-    {
-        if (models.contains(model_name))
-        {
-            std::cout << "Attempted to load model " << model_name << " but a model with the same name was already loaded. Path was: " << path << std::endl;
-            return;
-        }
-
-        auto [model_it, succeeded] = models.try_emplace(model_name, &vulkan_instance, command_pool, path);
-
-        if (!succeeded)
-        {
-            std::string error_string = "Failed to load model " + model_name + " with path: " + path.string();
-            throw std::runtime_error(error_string);
-        }
-    }
-
-    void Vulkan_Renderer::load_texture(const std::string& texture_name, const std::filesystem::path& path)
-    {
-        if (textures.contains(texture_name))
-        {
-            std::cout << "Attempted to load texture " << texture_name << " but a texture with the same name was already loaded. Path was: " << path << std::endl;
-            return;
-        }
-
-        auto [texture_it, succeeded] = textures.try_emplace(texture_name, Image::create_texture_image(vulkan_instance, command_pool, path));
-
-        if (!succeeded)
-        {
-            std::string error_string = "Failed to load texture " + texture_name + " with path: " + path.string();
-            throw std::runtime_error(error_string);
-        }
-
-
-        auto [texture_descriptor_it, descriptor_succeeded] = texture_descriptor_sets.try_emplace(texture_name, create_texture_descriptor_set(texture_it->second));
-
-        if (!descriptor_succeeded)
-        {
-            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
-        }
-    }
-
-    void Vulkan_Renderer::load_texture_array(const std::string& texture_name, const std::vector<std::filesystem::path>& paths)
-    {
-        if (texture_arrays.contains(texture_name))
-        {
-            std::cout << "Attempted to load texture array " << texture_name << " but a texture array with the same name was already loaded." << std::endl;
-            return;
-        }
-
-        auto [texture_it, succeeded] = texture_arrays.try_emplace(texture_name, Image::create_texture_array_image(vulkan_instance, command_pool, paths));
-
-        if (!succeeded)
-        {
-            std::string error_string = "Failed to load texture array " + texture_name;
-            throw std::runtime_error(error_string);
-        }
-
-        auto [texture_descriptor_it, descriptor_succeeded] = texture_array_descriptor_sets.try_emplace(texture_name, create_texture_descriptor_set(texture_it->second));
-
-        if (!descriptor_succeeded)
-        {
-            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
-        }
-
-    }
-
-    void Vulkan_Renderer::init_window(uint32_t width, uint32_t height)
+    void Vulkan_Engine::init_window(uint32_t width, uint32_t height)
     {
         this->width = width;
         this->height = height;
@@ -130,7 +32,7 @@ namespace vulvox
         std::cout << "Window initialized." << std::endl;
     }
 
-    void Vulkan_Renderer::init_vulkan()
+    void Vulkan_Engine::init_vulkan()
     {
         std::cout << "Init vulkan.." << std::endl;
 
@@ -159,7 +61,14 @@ namespace vulvox
         std::cout << "Vulkan initialized." << std::endl;
     }
 
-    void Vulkan_Renderer::cleanup()
+    void Vulkan_Engine::init(uint32_t width, uint32_t height)
+    {
+        init_window(width, height);
+        init_vulkan();
+        is_initialized = true;
+    }
+
+    void Vulkan_Engine::destroy()
     {
         if (!is_initialized)
         {
@@ -174,7 +83,7 @@ namespace vulvox
         vkDestroyPipeline(vulkan_instance.device, vertex_pipeline, nullptr);
         vkDestroyPipeline(vulkan_instance.device, instance_pipeline, nullptr);
         vkDestroyPipeline(vulkan_instance.device, instance_tex_array_pipeline, nullptr);
-        
+
         vkDestroyPipelineLayout(vulkan_instance.device, pipeline_layout, nullptr);
         vkDestroyRenderPass(vulkan_instance.device, render_pass, nullptr);
 
@@ -241,7 +150,110 @@ namespace vulvox
         glfwTerminate();
     }
 
-    void Vulkan_Renderer::start_draw()
+    void Vulkan_Engine::set_model_view_projection(const MVP& mvp_matrix)
+    {
+        model_view_projection = mvp_matrix;
+    }
+
+    GLFWwindow* Vulkan_Engine::get_glfw_window_ptr()
+    {
+        return window;
+    }
+
+    float Vulkan_Engine::get_aspect_ratio() const
+    {
+        return (float)width / (float)height;
+    }
+
+    void Vulkan_Engine::resize_window(const uint32_t new_width, const uint32_t new_height)
+    {
+        this->width = new_width;
+        this->height = new_height;
+
+        //Will also call the resize callback so the render engine will recreate the swapchain
+        glfwSetWindowSize(get_glfw_window_ptr(), new_width, new_height);
+    }
+
+    void Vulkan_Engine::load_model(const std::string& model_name, const std::filesystem::path& path)
+    {
+        if (models.contains(model_name))
+        {
+            std::cout << "Attempted to load model " << model_name << " but a model with the same name was already loaded. Path was: " << path << std::endl;
+            return;
+        }
+
+        auto [model_it, succeeded] = models.try_emplace(model_name, &vulkan_instance, command_pool, path);
+
+        if (!succeeded)
+        {
+            std::string error_string = "Failed to load model " + model_name + " with path: " + path.string();
+            throw std::runtime_error(error_string);
+        }
+    }
+
+    void Vulkan_Engine::load_texture(const std::string& texture_name, const std::filesystem::path& path)
+    {
+        if (textures.contains(texture_name))
+        {
+            std::cout << "Attempted to load texture " << texture_name << " but a texture with the same name was already loaded. Path was: " << path << std::endl;
+            return;
+        }
+
+        auto [texture_it, succeeded] = textures.try_emplace(texture_name, Image::create_texture_image(vulkan_instance, command_pool, path));
+
+        if (!succeeded)
+        {
+            std::string error_string = "Failed to load texture " + texture_name + " with path: " + path.string();
+            throw std::runtime_error(error_string);
+        }
+
+
+        auto [texture_descriptor_it, descriptor_succeeded] = texture_descriptor_sets.try_emplace(texture_name, create_texture_descriptor_set(texture_it->second));
+
+        if (!descriptor_succeeded)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
+        }
+    }
+
+    void Vulkan_Engine::load_texture_array(const std::string& texture_name, const std::vector<std::filesystem::path>& paths)
+    {
+        if (texture_arrays.contains(texture_name))
+        {
+            std::cout << "Attempted to load texture array " << texture_name << " but a texture array with the same name was already loaded." << std::endl;
+            return;
+        }
+
+        auto [texture_it, succeeded] = texture_arrays.try_emplace(texture_name, Image::create_texture_array_image(vulkan_instance, command_pool, paths));
+
+        if (!succeeded)
+        {
+            std::string error_string = "Failed to load texture array " + texture_name;
+            throw std::runtime_error(error_string);
+        }
+
+        auto [texture_descriptor_it, descriptor_succeeded] = texture_array_descriptor_sets.try_emplace(texture_name, create_texture_descriptor_set(texture_it->second));
+
+        if (!descriptor_succeeded)
+        {
+            throw std::runtime_error("Failed to allocate descriptor sets! (map allocation failed)");
+        }
+
+    }
+
+    void Vulkan_Engine::unload_model(const std::string& name)
+    {
+    }
+
+    void Vulkan_Engine::unload_texture(const std::string& name)
+    {
+    }
+
+    void Vulkan_Engine::unload_texture_array(const std::string& name)
+    {
+    }
+
+    void Vulkan_Engine::start_draw()
     {
         vkWaitForFences(vulkan_instance.device, 1, &in_flight_fences[current_frame], VK_TRUE, UINT64_MAX);
 
@@ -272,7 +284,7 @@ namespace vulvox
         start_record_command_buffer();
     }
 
-    void Vulkan_Renderer::end_draw()
+    void Vulkan_Engine::end_draw()
     {
         //Complete the command buffer before submitting it and presenting the image
         end_record_command_buffer();
@@ -334,7 +346,7 @@ namespace vulvox
         current_frame = (current_frame++) % MAX_FRAMES_IN_FLIGHT;
     }
 
-    void Vulkan_Renderer::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
+    void Vulkan_Engine::draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix)
     {
         if (!models.contains(model_name))
         {
@@ -372,7 +384,7 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix)
+    void Vulkan_Engine::draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix)
     {
         if (false)
         {
@@ -421,7 +433,7 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
+    void Vulkan_Engine::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
     {
         if (!models.contains(model_name))
         {
@@ -461,7 +473,7 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices)
+    void Vulkan_Engine::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices)
     {
         if (!models.contains(model_name))
         {
@@ -505,7 +517,45 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
-    void Vulkan_Renderer::create_render_pass()
+    void Vulkan_Engine::update_uniform_buffer(uint32_t current_image)
+    {
+        memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &model_view_projection, sizeof(model_view_projection));
+    }
+
+    void Vulkan_Engine::recreate_swap_chain()
+    {
+        int new_width = 0;
+        int new_height = 0;
+        glfwGetFramebufferSize(window, &new_width, &new_height);
+
+        while (new_width == 0 || new_height == 0) {
+            glfwGetFramebufferSize(window, &new_width, &new_height);
+            glfwWaitEvents();
+        }
+
+        width = new_width;
+        height = new_height;
+
+        vkDeviceWaitIdle(vulkan_instance.device);
+
+        cleanup_swap_chain();
+
+        swap_chain.create_swap_chain(window, vulkan_instance.surface);
+
+        create_depth_resources(); //Depend on depth image
+        create_framebuffers(); //Depend on image views
+    }
+
+    void Vulkan_Engine::cleanup_swap_chain()
+    {
+        //Destroy objects that depend on the swap chain
+        depth_image.destroy();
+
+        //Destroy the swap chain
+        swap_chain.cleanup_swap_chain();
+    }
+
+    void Vulkan_Engine::create_render_pass()
     {
         //The render pass describes the framebuffer attachments 
         //and how many color and depth buffers there are
@@ -582,57 +632,7 @@ namespace vulvox
         }
     }
 
-    /// <summary>
-    /// Creates the descriptor sets that describes the layout of the mvp matrix data binding in our pipeline.
-    /// </summary>
-    void Vulkan_Renderer::create_mvp_descriptor_set_layout()
-    {
-        //Layout binding for the uniform buffer
-        VkDescriptorSetLayoutBinding mvp_layout_binding{};
-        mvp_layout_binding.binding = 0; //Same as in shader
-        mvp_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        mvp_layout_binding.descriptorCount = 1;
-        mvp_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //This buffer is (only) referenced in the vertex stage
-        mvp_layout_binding.pImmutableSamplers = nullptr; //Optional
-
-        //Bind the layout binding in the single descriptor set layout
-        VkDescriptorSetLayoutCreateInfo layout_info{};
-        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layout_info.bindingCount = 1;
-        layout_info.pBindings = &mvp_layout_binding;
-
-        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &mvp_descriptor_set_layout) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to created descriptor set layout!");
-        }
-    }
-
-    /// <summary>
-    /// Creates the descriptor sets that describes the layout of the texture binding in our pipeline.
-    /// </summary>
-    void Vulkan_Renderer::create_texture_descriptor_set_layout()
-    {
-        //Layout binding for the image sampler
-        VkDescriptorSetLayoutBinding sampler_layout_binding{};
-        sampler_layout_binding.binding = 1; //Same as in shader
-        sampler_layout_binding.descriptorCount = 1;
-        sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        sampler_layout_binding.pImmutableSamplers = nullptr;
-        sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; //Connect to fragment shader stage
-
-        //Bind the layout binding in the single descriptor set layout
-        VkDescriptorSetLayoutCreateInfo layout_info{};
-        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layout_info.bindingCount = 1;
-        layout_info.pBindings = &sampler_layout_binding;
-
-        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &texture_descriptor_set_layout) != VK_SUCCESS)
-        {
-            throw std::runtime_error("Failed to created descriptor set layout!");
-        }
-    }
-
-    void Vulkan_Renderer::create_graphics_pipeline()
+    void Vulkan_Engine::create_graphics_pipeline()
     {
         //Define push constants, the model matrix for single rendering is updated using push constants
         VkPushConstantRange push_constant_range{};
@@ -899,7 +899,7 @@ namespace vulvox
     /// Creates the framebuffers that can be used as a draw target in the renderpass
     /// e.g. depth and swap chain images
     /// </summary>
-    void Vulkan_Renderer::create_framebuffers()
+    void Vulkan_Engine::create_framebuffers()
     {
         swap_chain.framebuffers.resize(swap_chain.image_views.size());
 
@@ -924,7 +924,7 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::create_depth_resources()
+    void Vulkan_Engine::create_depth_resources()
     {
         VkFormat depth_format = vulkan_instance.find_depth_format();
 
@@ -940,7 +940,7 @@ namespace vulvox
         depth_image.create_image_view();
     }
 
-    void Vulkan_Renderer::create_instance_buffers()
+    void Vulkan_Engine::create_instance_buffers()
     {
         const int base_instance_count = 50;
 
@@ -956,7 +956,7 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::create_instance_texture_buffers()
+    void Vulkan_Engine::create_instance_texture_buffers()
     {
         const int base_instance_count = 50;
 
@@ -972,7 +972,7 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data)
+    void Vulkan_Engine::copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data)
     {
         size_t data_size = instance_data.size() * sizeof(instance_data[0]);
 
@@ -984,7 +984,7 @@ namespace vulvox
         memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, instance_data.data(), data_size);
     }
 
-    void Vulkan_Renderer::copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices)
+    void Vulkan_Engine::copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices)
     {
         size_t data_size = instance_texture_indices.size() * sizeof(uint32_t);
 
@@ -996,7 +996,7 @@ namespace vulvox
         memcpy(instance_texture_index_buffers[current_frame].allocation_info.pMappedData, instance_texture_indices.data(), data_size);
     }
 
-    void Vulkan_Renderer::create_uniform_buffers()
+    void Vulkan_Engine::create_uniform_buffers()
     {
         VkDeviceSize buffer_size = sizeof(MVP);
 
@@ -1016,7 +1016,7 @@ namespace vulvox
     /// This function creates a descriptor pool that holds the descriptor sets.
     /// Because this renderers usecase will not involve a lot of models we just create a single large pool.
     /// </summary>
-    void Vulkan_Renderer::create_descriptor_pool()
+    void Vulkan_Engine::create_descriptor_pool()
     {
         std::array<VkDescriptorPoolSize, 2> pool_sizes{};
 
@@ -1039,12 +1039,61 @@ namespace vulvox
         }
     }
 
+    /// <summary>
+    /// Creates the descriptor sets that describes the layout of the mvp matrix data binding in our pipeline.
+    /// </summary>
+    void Vulkan_Engine::create_mvp_descriptor_set_layout()
+    {
+        //Layout binding for the uniform buffer
+        VkDescriptorSetLayoutBinding mvp_layout_binding{};
+        mvp_layout_binding.binding = 0; //Same as in shader
+        mvp_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        mvp_layout_binding.descriptorCount = 1;
+        mvp_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //This buffer is (only) referenced in the vertex stage
+        mvp_layout_binding.pImmutableSamplers = nullptr; //Optional
+
+        //Bind the layout binding in the single descriptor set layout
+        VkDescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &mvp_layout_binding;
+
+        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &mvp_descriptor_set_layout) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to created descriptor set layout!");
+        }
+    }
+
+    /// <summary>
+    /// Creates the descriptor sets that describes the layout of the texture binding in our pipeline.
+    /// </summary>
+    void Vulkan_Engine::create_texture_descriptor_set_layout()
+    {
+        //Layout binding for the image sampler
+        VkDescriptorSetLayoutBinding sampler_layout_binding{};
+        sampler_layout_binding.binding = 1; //Same as in shader
+        sampler_layout_binding.descriptorCount = 1;
+        sampler_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        sampler_layout_binding.pImmutableSamplers = nullptr;
+        sampler_layout_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT; //Connect to fragment shader stage
+
+        //Bind the layout binding in the single descriptor set layout
+        VkDescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &sampler_layout_binding;
+
+        if (vkCreateDescriptorSetLayout(vulkan_instance.device, &layout_info, nullptr, &texture_descriptor_set_layout) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to created descriptor set layout!");
+        }
+    }
 
     /// <summary>
     /// Allocates the mvp descriptor sets for all shaders.
     /// The MVP buffer will never change (only its data will) so we write it here as well.
     /// </summary>
-    void Vulkan_Renderer::create_descriptor_sets()
+    void Vulkan_Engine::create_descriptor_sets()
     {
         std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, mvp_descriptor_set_layout);
 
@@ -1127,7 +1176,7 @@ namespace vulvox
     /// Allocates a new descriptor for the texture sampler uniform in the triangle shader to point to the given texture
     /// </summary>
     /// <param name="texture_name">Name of the texture to create a descriptor for</param>
-    VkDescriptorSet Vulkan_Renderer::create_texture_descriptor_set(const Image& texture)
+    VkDescriptorSet Vulkan_Engine::create_texture_descriptor_set(const Image& texture)
     {
         VkDescriptorSet new_descriptor_set{};
 
@@ -1167,7 +1216,7 @@ namespace vulvox
         return new_descriptor_set;
     }
 
-    void Vulkan_Renderer::create_sync_objects()
+    void Vulkan_Engine::create_sync_objects()
     {
         image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
         render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1191,7 +1240,7 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::start_record_command_buffer()
+    void Vulkan_Engine::start_record_command_buffer()
     {
         //Describe a new render pass targeting the given image index in the swapchain
         VkRenderPassBeginInfo render_pass_begin_info{};
@@ -1246,7 +1295,7 @@ namespace vulvox
         vkCmdSetScissor(current_command_buffer, 0, 1, &scissor);
     }
 
-    void Vulkan_Renderer::end_record_command_buffer()
+    void Vulkan_Engine::end_record_command_buffer()
     {
         vkCmdEndRenderPass(current_command_buffer);
 
@@ -1256,40 +1305,7 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Renderer::cleanup_swap_chain()
-    {
-        //Destroy objects that depend on the swap chain
-        depth_image.destroy();
-
-        //Destroy the swap chain
-        swap_chain.cleanup_swap_chain();
-    }
-
-    void Vulkan_Renderer::recreate_swap_chain()
-    {
-        int new_width = 0;
-        int new_height = 0;
-        glfwGetFramebufferSize(window, &new_width, &new_height);
-
-        while (new_width == 0 || new_height == 0) {
-            glfwGetFramebufferSize(window, &new_width, &new_height);
-            glfwWaitEvents();
-        }
-
-        width = new_width;
-        height = new_height;
-
-        vkDeviceWaitIdle(vulkan_instance.device);
-
-        cleanup_swap_chain();
-
-        swap_chain.create_swap_chain(window, vulkan_instance.surface);
-
-        create_depth_resources(); //Depend on depth image
-        create_framebuffers(); //Depend on image views
-    }
-
-    VkShaderModule Vulkan_Renderer::create_shader_module(const std::vector<char>& bytecode)
+    VkShaderModule Vulkan_Engine::create_shader_module(const std::vector<char>& bytecode)
     {
         VkShaderModuleCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1305,7 +1321,7 @@ namespace vulvox
         return shader_module;
     }
 
-    bool Vulkan_Renderer::has_stencil_component(VkFormat format) const
+    bool Vulkan_Engine::has_stencil_component(VkFormat format) const
     {
         return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
     }

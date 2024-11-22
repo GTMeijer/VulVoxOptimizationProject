@@ -1,44 +1,28 @@
 #pragma once
 
-
 namespace vulvox
 {
-    class Vulkan_Renderer
+    class Vulkan_Engine
     {
     public:
-
-        Vulkan_Renderer();
-
-        void init(uint32_t width, uint32_t height)
-        {
-            init_window(width, height);
-            init_vulkan();
-            is_initialized = true;
-        }
-
-        void cleanup();
-
-        void start_draw();
-        void end_draw();
-
-        void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
-        void draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix);
-        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
-        void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices);
-
-        /// <summary>
-        /// Checks if a close command was given to the window, indicating the program should shutdown.
-        /// </summary>
-        /// <returns></returns>
-        bool should_close() const;
-
-        void set_camera(const MVP& camera_matrix);
-
-        GLFWwindow* get_window();
-        void resize_window(const uint32_t width, const uint32_t height);
-        float get_aspect_ratio() const;
+        Vulkan_Engine();
+        ~Vulkan_Engine();
 
         bool framebuffer_resized = false;
+
+        void init_window(uint32_t width, uint32_t height);
+        void init_vulkan();
+
+        void init(uint32_t width, uint32_t height);
+
+        void destroy();
+
+        void set_model_view_projection(const MVP& mvp_matrix);
+
+        GLFWwindow* get_glfw_window_ptr();
+
+        float get_aspect_ratio() const;
+        void resize_window(const uint32_t new_width, const uint32_t new_height);
 
         void load_model(const std::string& model_name, const std::filesystem::path& path);
         void load_texture(const std::string& texture_name, const std::filesystem::path& path);
@@ -48,14 +32,15 @@ namespace vulvox
         void unload_texture(const std::string& name);
         void unload_texture_array(const std::string& name);
 
+        void start_draw();
+        void end_draw();
+
+        void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
+        void draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix);
+        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
+        void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices);
 
     private:
-
-        bool is_initialized = false;
-        int frame_count = 0;
-
-        void init_window(uint32_t width, uint32_t height);
-        void init_vulkan();
 
         void update_uniform_buffer(uint32_t current_image);
 
@@ -73,7 +58,7 @@ namespace vulvox
         void create_instance_buffers();
         void create_instance_texture_buffers();
         void copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data);
-        void copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_data);
+        void copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices);
         void create_uniform_buffers();
 
         void create_descriptor_pool();
@@ -91,6 +76,10 @@ namespace vulvox
         VkShaderModule create_shader_module(const std::vector<char>& bytecode);
 
         bool has_stencil_component(VkFormat format) const;
+
+        bool is_initialized = false;
+
+        int frame_count = 0;
 
         uint32_t width = 800;
         uint32_t height = 600;
@@ -162,10 +151,11 @@ namespace vulvox
         uint32_t current_frame = 0;
     };
 
+
     static void framebuffer_resize_callback(GLFWwindow* window, int width, int height)
     {
         //Retrieve the object instance the window belongs to
-        auto app = reinterpret_cast<Vulkan_Renderer*>(glfwGetWindowUserPointer(window));
+        auto app = reinterpret_cast<Vulkan_Engine*>(glfwGetWindowUserPointer(window));
         app->framebuffer_resized = true;
     }
 }
