@@ -4,47 +4,47 @@ on:
   workflow_dispatch:
 
 jobs:
-  # release-windows:
-  #   runs-on: windows-latest
-  #   name: Build on Windows-latest
-  #   steps:
-  #     #checkout code
-  #     - name: Checkout code
-  #       id: checkout_code
-  #       uses: actions/checkout@v4
-  #
-  #     #Setup Vulkan SDK
-  #     - name: Install Vulkan SDK
-  #       uses: humbletim/install-vulkan-sdk@v1.1.1
-  #       with:
-  #        version: latest
-  #        cache: true
-  #
-  #     #Locate MSBuild.eze and add to PATH
-  #     - name: Add MSBuild to PATH
-  #       id: setup_msbuild
-  #       uses: microsoft/setup-msbuild@v2
-  #       with:
-  #         msbuild-architecture: x64
-  #        
-  #     #Run MSBuild Release
-  #     - name: Run MSBuild Release
-  #       id: run_msbuild_release
-  #       working-directory: .\
-  #       run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
-  #
-  #     #Upload release build as artifact
-  #     - uses: actions/upload-artifact@v4
-  #       with:
-  #         name: windows-release-artifact
-  #         path: x64/Release
-  #
+  release-windows:
+    runs-on: windows-latest
+    name: Build on Windows-latest
+    steps:
+      #checkout code
+      - name: Checkout code
+        id: checkout_code
+        uses: actions/checkout@v4
+  
+      #Setup Vulkan SDK
+      - name: Install Vulkan SDK
+        uses: humbletim/install-vulkan-sdk@v1.1.1
+        with:
+         version: latest
+         cache: true
+  
+      #Locate MSBuild.eze and add to PATH
+      - name: Add MSBuild to PATH
+        id: setup_msbuild
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+         
+      #Run MSBuild Release
+      - name: Run MSBuild Release
+        id: run_msbuild_release
+        working-directory: .\
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Release -property:Platform=x64
+  
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-artifact
+          path: x64/Release
+  
   release-macOS:
     runs-on: macos-latest
     name: Build on MacOS-latest
     env:
       VULKAN_SDK_VERSION: ""
-      VULKAN_SDK: ""
+      VULKAN_SDK_INSTALLER: ""
       VERSION_URL: "https://vulkan.lunarg.com/sdk/latest/mac.txt"
       SDK_URL: ""
     steps:
@@ -60,31 +60,45 @@ jobs:
           echo "retrieving latest version from url: $VERSION_URL"
           VULKAN_SDK_VERSION=$(curl -sL $VERSION_URL)
           echo "latest version for MacOS is: $VULKAN_SDK_VERSION"
-          basedir=$PWD
-          echo "VULKAN_SDK=-$basedir/VULKAN_SDK" >> $GITHUB_ENV
           echo "VULKAN_SDK_VERSION=$VULKAN_SDK_VERSION" >> $GITHUB_ENV
 
-      - name: Download Vulkan SDK
+      - name: Download and unzip Vulkan SDK
         shell: bash
         run: |
+            VULKAN_SDK_VERSION=${{env.VULKAN_SDK_VERSION}}
+            VERSION_URL=${{env.VERSION_URL}}
+            VULKAN_SDK_INSTALLER=$PWD/VULKAN_SDK_INSTALLER
+            echo "VULKAN_SDK_INSTALLER=$VULKAN_SDK_INSTALLER" >> $GITHUB_ENV
             SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/mac/vulkan_sdk.dmg?Human=true"
             echo "SDK_URL=$SDK_URL" >> $GITHUB_ENV
             echo "Downloading Vulkan SDK $VULKAN_SDK_VERSION from $SDK_URL"
-            curl --fail-with-body -s -L -o vulkan_sdk.dmg.tmp $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
-            test -f vulkan_sdk.dmg.tmp
-            mv -v vulkan_sdk.dmg.tmp vulkan_sdk.dmg
-            ls -lh vulkan_sdk.dmg >&2
-
+            curl --fail-with-body -s -L -o vulkan_sdk.zip $SDK_URL || { echo "curl failed with error code: $?" >&2 ; curl -s -L --head $VERSION_URL >&2 ; exit 32 ; }
+            test -f vulkan_sdk.zip
+            ls -lh vulkan_sdk.zip >&2
+            echo "Unzipping Vulkan SDK into $VULKAN_SDK_INSTALLER"
+            mkdir -p "$VULKAN_SDK_INSTALLER"
+            unzip -q vulkan_sdk.zip -d "$VULKAN_SDK_INSTALLER"
+            ls -lh "$VULKAN_SDK_INSTALLER" >&2
+            du -hs $VULKAN_SDK_INSTALLER
+            
       - name: Install Vulkan SDK
         shell: bash
         run: |
-          VULKAN_SDK=${{env.VULKAN_SDK}}
-          test -d $VULKAN_SDK && test -f vulkan_sdk.dmg
-          MOUNTPOINT=$(hdiutil attach vulkan_sdk.dmg | grep -i vulkansdk | awk 'END {print $NF}')
-          echo "Installing from mountpoint: $MOUNTPOINT"
-          sudo $MOUNTPOINT/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
-          du -hs $VULKAN_SDK
-
+          VULKAN_SDK_INSTALLER=${{env.VULKAN_SDK_INSTALLER}}
+          VULKAN_SDK=$PWD/VULKAN_SDK
+          echo "Installing from unzipped folder: $VULKAN_SDK_INSTALLER"
+          sudo $VULKAN_SDK_INSTALLER/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
+          echo "Cleaning installer files"
+          sudo rm -rf "$VULKAN_SDK_INSTALLER"
+          #Check install
+          if [ ! -d "$VULKAN_SDK" ]; then
+          echo "Error: Vulkan SDK installation failed." >&2
+          exit 1
+          fi
+          #ls -h $VULKAN_SDK
+          cd $VULKAN_SDK
+          sudo ./install_vulkan.py
+          
       - name: Install glfw
         run: brew install glfw
       
@@ -93,3 +107,9 @@ jobs:
 
       - name: Build project
         run: cmake --build build/ --config Release
+
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-release-artifact
+          path: ./build/libVulVoxOptimizationProject.a
