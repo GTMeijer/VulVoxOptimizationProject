@@ -1,13 +1,15 @@
 #include "pch.h"
 #include "scene.h"
 
+#include "../VulVoxOptimizationProject/mvp_handler.h"
+
 Scene::Scene(vulvox::Renderer& renderer) : renderer(&renderer)
 {
     glm::vec3 camera_pos{ 0.0f, 0.0f, 0.0f };
     glm::vec3 camera_up{ 0.0f, 1.0f, 0.0f };
     glm::vec3 camera_direction{ 0.0f, 0.0f, 1.0f };
 
-    camera = Camera(camera_pos, camera_up, camera_direction, renderer.get_aspect_ratio(), glm::radians(45.0f), 0.1f, 1000.0f);
+    camera = Camera(camera_pos, camera_up, camera_direction);
 
     renderer.load_model("Konata", MODEL_PATH);
     renderer.load_texture("Konata", KONATA_MODAL_TEXTURE_PATH);
@@ -77,11 +79,7 @@ void Scene::update(float delta_time)
         }
     }
 
-
-    camera.set_aspect_ratio(renderer->get_aspect_ratio());
-    renderer->set_camera(camera.get_mvp());
-
-
+    renderer->set_view_matrix(camera.get_view_matrix());
 }
 
 void Scene::draw()

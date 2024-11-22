@@ -8,7 +8,6 @@ namespace vulvox
         Vulkan_Engine();
         ~Vulkan_Engine();
 
-        bool framebuffer_resized = false;
 
         void init_window(uint32_t width, uint32_t height);
         void init_vulkan();
@@ -17,11 +16,9 @@ namespace vulvox
 
         void destroy();
 
-        void set_model_view_projection(const MVP& mvp_matrix);
-
         GLFWwindow* get_glfw_window_ptr();
+        MVP_Handler& get_mvp_handler();
 
-        float get_aspect_ratio() const;
         void resize_window(const uint32_t new_width, const uint32_t new_height);
 
         void load_model(const std::string& model_name, const std::filesystem::path& path);
@@ -39,6 +36,8 @@ namespace vulvox
         void draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix);
         void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
         void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices);
+
+        bool framebuffer_resized = false;
 
     private:
 
@@ -143,7 +142,7 @@ namespace vulvox
         std::unordered_map<std::string, VkDescriptorSet> texture_array_descriptor_sets;
         std::unordered_map<std::string, Image> texture_arrays;
 
-        MVP model_view_projection;
+        MVP_Handler mvp_handler;
 
         //We don't want to wait for the previous frame to finish while processing the next frame,
         //so we create double the amount of buffers so we can overlap frame processing

@@ -118,6 +118,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="model.cpp" />
     <ClCompile Include="mvp.cpp" />
+    <ClCompile Include="mvp_handler.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
@@ -136,6 +137,7 @@
     <ClInclude Include="instance_data.h" />
     <ClInclude Include="model.h" />
     <ClInclude Include="mvp.h" />
+    <ClInclude Include="mvp_handler.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="texture_array_index_binding.h" />

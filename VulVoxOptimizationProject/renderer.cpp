@@ -10,9 +10,12 @@ namespace vulvox
 
     Renderer::~Renderer() = default;
 
-    void Renderer::init(uint32_t width, uint32_t height)
+    void Renderer::init(uint32_t width, uint32_t height, float field_of_view, float near_plane, float far_plane)
     {
         vulkan_engine->init(width, height);
+        vulkan_engine->get_mvp_handler().set_field_of_view(field_of_view);
+        vulkan_engine->get_mvp_handler().set_near_plane(near_plane);
+        vulkan_engine->get_mvp_handler().set_far_plane(far_plane);
     }
 
     void Renderer::destroy()
@@ -85,9 +88,34 @@ namespace vulvox
         vulkan_engine->unload_texture_array(name);
     }
 
-    void Renderer::set_camera(const MVP& camera_matrix)
+    void Renderer::set_model_matrix(const glm::mat4& new_model_matrix)
     {
-        vulkan_engine->set_model_view_projection(camera_matrix);
+        vulkan_engine->get_mvp_handler().set_model_matrix(new_model_matrix);
+    }
+
+    void Renderer::set_view_matrix(const glm::mat4& new_view_matrix)
+    {
+        vulkan_engine->get_mvp_handler().set_view_matrix(new_view_matrix);
+    }
+
+    void Renderer::set_field_of_view(float new_field_of_view)
+    {
+        vulkan_engine->get_mvp_handler().set_field_of_view(new_field_of_view);
+    }
+
+    void Renderer::set_aspect_ratio(float new_aspect_ratio)
+    {
+        vulkan_engine->get_mvp_handler().set_aspect_ratio(new_aspect_ratio);
+    }
+
+    void Renderer::set_near_plane(float new_near_plane)
+    {
+        vulkan_engine->get_mvp_handler().set_near_plane(new_near_plane);
+    }
+
+    void Renderer::set_far_plane(float new_far_plane)
+    {
+        vulkan_engine->get_mvp_handler().set_far_plane(new_far_plane);
     }
 
     GLFWwindow* Renderer::get_window()
@@ -101,6 +129,6 @@ namespace vulvox
 
     float Renderer::get_aspect_ratio() const
     {
-        return vulkan_engine->get_aspect_ratio();
+        return vulkan_engine->get_mvp_handler().get_aspect_ratio();
     }
 }

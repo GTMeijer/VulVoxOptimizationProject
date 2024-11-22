@@ -10,7 +10,9 @@ int main()
     {
         vulvox::Renderer renderer;
 
-        renderer.init(width, height);
+        renderer.init(width, height, glm::radians(45.0f), 0.1f, 1000.0f);
+
+        
 
         Scene scene(renderer);
 

@@ -12,7 +12,7 @@ namespace vulvox
         Renderer();
         ~Renderer();
 
-        void init(uint32_t width, uint32_t height);
+        void init(uint32_t width, uint32_t height, float field_of_view, float near_plane, float far_plane);
         void destroy();
 
         /// <summary>
@@ -37,7 +37,13 @@ namespace vulvox
         void unload_texture(const std::string& name);
         void unload_texture_array(const std::string& name);
 
-        void set_camera(const MVP& camera_matrix);
+        void set_model_matrix(const glm::mat4& new_model_matrix);
+        void set_view_matrix(const glm::mat4& new_view_matrix);
+
+        void set_field_of_view(float new_field_of_view);
+        void set_aspect_ratio(float new_aspect_ratio);
+        void set_near_plane(float new_near_plane);
+        void set_far_plane(float new_far_plane);
 
         GLFWwindow* get_window();
         void resize_window(const uint32_t new_width, const uint32_t new_height);

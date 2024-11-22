@@ -50,6 +50,7 @@
 #include "utils.h"
 #include "vertex.h"
 #include "mvp.h"
+#include "mvp_handler.h"
 #include "instance_data.h"
 #include "texture_array_index_binding.h"
 

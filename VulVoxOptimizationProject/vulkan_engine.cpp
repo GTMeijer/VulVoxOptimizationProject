@@ -42,6 +42,7 @@ namespace vulvox
         vulkan_instance.init_allocator();
 
         swap_chain.create_swap_chain(window, vulkan_instance.surface);
+        mvp_handler.set_aspect_ratio(static_cast<float>(width) / static_cast<float>(height));
 
         create_render_pass();
         create_mvp_descriptor_set_layout();
@@ -150,19 +151,14 @@ namespace vulvox
         glfwTerminate();
     }
 
-    void Vulkan_Engine::set_model_view_projection(const MVP& mvp_matrix)
-    {
-        model_view_projection = mvp_matrix;
-    }
-
     GLFWwindow* Vulkan_Engine::get_glfw_window_ptr()
     {
         return window;
     }
 
-    float Vulkan_Engine::get_aspect_ratio() const
+    MVP_Handler& Vulkan_Engine::get_mvp_handler()
     {
-        return (float)width / (float)height;
+        return mvp_handler;
     }
 
     void Vulkan_Engine::resize_window(const uint32_t new_width, const uint32_t new_height)
@@ -519,7 +515,7 @@ namespace vulvox
 
     void Vulkan_Engine::update_uniform_buffer(uint32_t current_image)
     {
-        memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &model_view_projection, sizeof(model_view_projection));
+        memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp_handler.model_view_projection, sizeof(mvp_handler.model_view_projection));
     }
 
     void Vulkan_Engine::recreate_swap_chain()
@@ -541,6 +537,8 @@ namespace vulvox
         cleanup_swap_chain();
 
         swap_chain.create_swap_chain(window, vulkan_instance.surface);
+
+        mvp_handler.set_aspect_ratio(static_cast<float>(width) / static_cast<float>(height));
 
         create_depth_resources(); //Depend on depth image
         create_framebuffers(); //Depend on image views
