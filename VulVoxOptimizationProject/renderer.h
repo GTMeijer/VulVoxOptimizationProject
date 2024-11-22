@@ -1,6 +1,6 @@
 #pragma once
 
-//Use Unique_Ptr vulkan_engine
+//Uses Unique_Ptr to vulkan_engine to hide implementation details (pimpl pattern)
 
 namespace vulvox
 {
@@ -26,8 +26,8 @@ namespace vulvox
 
         void draw_model(const std::string& model_name, const std::string& texture_name, const glm::mat4& model_matrix);
         void draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix);
-        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data);
-        void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices);
+        void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices);
+        void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices);
 
         void load_model(const std::string& model_name, const std::filesystem::path& path);
         void load_texture(const std::string& texture_name, const std::filesystem::path& path);

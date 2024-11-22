@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "scene.h"
 
-#include "../VulVoxOptimizationProject/mvp_handler.h"
-
 Scene::Scene(vulvox::Renderer& renderer) : renderer(&renderer)
 {
     glm::vec3 camera_pos{ 0.0f, 0.0f, 0.0f };
@@ -27,11 +25,11 @@ Scene::Scene(vulvox::Renderer& renderer) : renderer(&renderer)
     {
         for (size_t j = 0; j < 25; j++)
         {
-            vulvox::Instance_Data instance_data;
-            instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, 125.0f, j * 10.f));
-            instance_data.instance_model_matrix = glm::scale(instance_data.instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
+            glm::mat4 instance_model_matrix;
+            instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, 125.0f, j * 10.f));
+            instance_model_matrix = glm::scale(instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
 
-            konata_matrices.push_back(instance_data);
+            konata_matrices.push_back(instance_model_matrix);
         }
     }
 
@@ -68,11 +66,11 @@ void Scene::update(float delta_time)
         {
             for (size_t j = 0; j < x_count; j++)
             {
-                vulvox::Instance_Data instance_data;
-                instance_data.instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, (num_layers + 1) * 10.0f + 125.0f, j * 10.f));
-                instance_data.instance_model_matrix = glm::scale(instance_data.instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
+                glm::mat4 instance_model_matrix;
+                instance_model_matrix = glm::translate(konata_matrix, glm::vec3(i * 10.f, (num_layers + 1) * 10.0f + 125.0f, j * 10.f));
+                instance_model_matrix = glm::scale(instance_model_matrix, glm::vec3(10.f, 10.f, 10.f));
 
-                konata_matrices.push_back(instance_data);
+                konata_matrices.push_back(instance_model_matrix);
 
                 texture_indices.push_back(((i * y_count) + j) % 2);
             }

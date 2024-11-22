@@ -7,7 +7,7 @@ namespace vulvox
     {
         VkVertexInputBindingDescription binding_description{};
         binding_description.binding = binding; //Array binding index
-        binding_description.stride = sizeof(Instance_Data);
+        binding_description.stride = sizeof(glm::mat4);
         binding_description.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE; //Can be vertex or instance
 
         return binding_description;

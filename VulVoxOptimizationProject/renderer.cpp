@@ -48,14 +48,14 @@ namespace vulvox
         vulkan_engine->draw_model_with_texture_array(model_name, texture_array_name, texture_index, model_matrix);
     }
 
-    void Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
+    void Renderer::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
     {
-        vulkan_engine->draw_instanced(model_name, texture_name, instance_data);
+        vulkan_engine->draw_instanced(model_name, texture_name, model_matrices);
     }
 
-    void Renderer::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices)
+    void Renderer::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices)
     {
-        vulkan_engine->draw_instanced_with_texture_array(model_name, texture_array_name, instance_data, texture_indices);
+        vulkan_engine->draw_instanced_with_texture_array(model_name, texture_array_name, model_matrices, texture_indices);
     }
 
     void Renderer::load_model(const std::string& model_name, const std::filesystem::path& path)

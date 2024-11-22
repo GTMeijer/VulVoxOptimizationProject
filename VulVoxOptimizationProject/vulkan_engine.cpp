@@ -429,7 +429,7 @@ namespace vulvox
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, 1, 0, 0, 0);
     }
 
-    void Vulkan_Engine::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<Instance_Data>& instance_data)
+    void Vulkan_Engine::draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices)
     {
         if (!models.contains(model_name))
         {
@@ -445,7 +445,7 @@ namespace vulvox
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        copy_to_instance_buffer(instance_data);
+        copy_to_instance_buffer(model_matrices);
 
         //Bind the uniform buffers
         //Bind set 0, the MVP buffer
@@ -465,11 +465,11 @@ namespace vulvox
         vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_pipeline);
 
         //Render instances
-        uint32_t instance_count = static_cast<uint32_t>(instance_data.size());
+        uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
-    void Vulkan_Engine::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<Instance_Data>& instance_data, const std::vector<uint32_t>& texture_indices)
+    void Vulkan_Engine::draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices)
     {
         if (!models.contains(model_name))
         {
@@ -485,7 +485,7 @@ namespace vulvox
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        copy_to_instance_buffer(instance_data);
+        copy_to_instance_buffer(model_matrices);
         copy_to_instance_texture_buffer(texture_indices);
 
         //Bind the uniform buffers
@@ -509,7 +509,7 @@ namespace vulvox
         vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_tex_array_pipeline);
 
         //Render instances
-        uint32_t instance_count = static_cast<uint32_t>(instance_data.size());
+        uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
     }
 
@@ -942,7 +942,7 @@ namespace vulvox
     {
         const int base_instance_count = 50;
 
-        VkDeviceSize instance_data_buffer_size = sizeof(Instance_Data) * base_instance_count;
+        VkDeviceSize instance_data_buffer_size = sizeof(glm::mat4) * base_instance_count;
 
         //Create instance buffers as device only buffers
         instance_data_buffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -970,16 +970,16 @@ namespace vulvox
         }
     }
 
-    void Vulkan_Engine::copy_to_instance_buffer(const std::vector<Instance_Data>& instance_data)
+    void Vulkan_Engine::copy_to_instance_buffer(const std::vector<glm::mat4>& model_matrices)
     {
-        size_t data_size = instance_data.size() * sizeof(instance_data[0]);
+        size_t data_size = model_matrices.size() * sizeof(model_matrices[0]);
 
         if (data_size > instance_data_buffers[current_frame].size)
         {
             instance_data_buffers[current_frame].recreate(vulkan_instance, data_size);
         }
 
-        memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, instance_data.data(), data_size);
+        memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, model_matrices.data(), data_size);
     }
 
     void Vulkan_Engine::copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices)

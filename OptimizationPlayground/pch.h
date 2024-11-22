@@ -17,10 +17,7 @@
 
 
 #include <filesystem>
-#include "../VulVoxOptimizationProject/mvp.h"
-#include "../VulVoxOptimizationProject/instance_data.h"
 #include "../VulVoxOptimizationProject/renderer.h"
-
 
 #include "camera.h"
 

@@ -7,18 +7,6 @@ Camera::Camera(glm::vec3 position, glm::vec3 up, glm::vec3 direction)
 
 }
 
-//vulvox::MVP Camera::get_mvp() const
-//{
-//    vulvox::MVP mvp;
-//    mvp.model = glm::mat4(1.0f); //Identity, no need to transform all models
-//    mvp.view = get_view_matrix();
-//    mvp.projection = get_projection_matrix();
-//
-//    return mvp;
-//}
-
-
-
 glm::mat4 Camera::get_view_matrix() const
 {
     glm::mat4 view_matrix = glm::lookAt(position, position + direction, up);
