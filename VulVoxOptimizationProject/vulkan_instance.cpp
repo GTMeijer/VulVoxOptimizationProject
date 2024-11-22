@@ -622,4 +622,9 @@ namespace vulvox
 
         throw std::runtime_error("Failed to find suitable memory type!");
     }
+
+    bool Queue_Family_Indices::is_complete() const
+    {
+        return graphics_family.has_value() && present_family.has_value();
+    }
 }

@@ -7,10 +7,7 @@ namespace vulvox
     {
     public:
 
-        Vulkan_Renderer() : swap_chain(&vulkan_instance)
-        {
-
-        }
+        Vulkan_Renderer();
 
         void init(uint32_t width, uint32_t height)
         {

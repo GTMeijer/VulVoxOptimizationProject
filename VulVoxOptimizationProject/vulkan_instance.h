@@ -16,10 +16,7 @@ namespace vulvox
         /// Check if all queue families are filled.
         /// </summary>
         /// <returns>Returns true if all queue families indices are initialized.</returns>
-        bool is_complete() const
-        {
-            return graphics_family.has_value() && present_family.has_value();
-        }
+        bool is_complete() const;
     };
 
     struct Swap_Chain_Support_Details

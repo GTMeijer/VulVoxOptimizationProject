@@ -65,14 +65,4 @@ namespace vulvox
 
 
     };
-
-    class Texture
-    {
-
-    };
-
-    class TextureArray
-    {
-
-    };
 }

@@ -3,6 +3,11 @@
 
 namespace vulvox
 {
+    Vulkan_Renderer::Vulkan_Renderer() : swap_chain(&vulkan_instance)
+    {
+
+    }
+
     bool Vulkan_Renderer::should_close() const
     {
         return glfwWindowShouldClose(window);
@@ -160,6 +165,7 @@ namespace vulvox
         {
             return;
         }
+
         //Wait until all operations are completed before cleanup
         vkDeviceWaitIdle(vulkan_instance.device);
 
