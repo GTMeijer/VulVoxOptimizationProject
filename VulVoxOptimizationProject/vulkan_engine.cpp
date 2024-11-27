@@ -753,12 +753,15 @@ namespace vulvox
         //Handle color blending of the fragments (for example alpha blending) (disabled)
         VkPipelineColorBlendAttachmentState color_blend_attachement_info{};
         color_blend_attachement_info.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-        color_blend_attachement_info.blendEnable = VK_FALSE; //Disabled
-        color_blend_attachement_info.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; //Optional
-        color_blend_attachement_info.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; //Optional
+        color_blend_attachement_info.blendEnable = VK_TRUE; //Blend activated for transparency
+        //use standard blend equation:
+        //Color: SrcColor * SrcAlpha + DstColor * (1 - SrcAlpha)
+        //Alpha: SrcAlpha* SrcAlpha + DstAlpha * (1 - SrcAlpha)
+        color_blend_attachement_info.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; //Optional
+        color_blend_attachement_info.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; //Optional
         color_blend_attachement_info.colorBlendOp = VK_BLEND_OP_ADD; //Optional
-        color_blend_attachement_info.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; //Optional
-        color_blend_attachement_info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; //Optional
+        color_blend_attachement_info.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; //Optional
+        color_blend_attachement_info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; //Optional
         color_blend_attachement_info.alphaBlendOp = VK_BLEND_OP_ADD; //Optional
 
         VkPipelineColorBlendStateCreateInfo color_blending_info{};
