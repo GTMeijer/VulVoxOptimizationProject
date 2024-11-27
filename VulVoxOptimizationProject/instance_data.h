@@ -4,8 +4,6 @@ namespace vulvox
 {
     struct Instance_Data
     {
-        glm::mat4 instance_model_matrix = glm::mat4{ 1.0f };
-
         /// <summary>
         /// Returns a description of the input buffer containing instances
         /// </summary>
