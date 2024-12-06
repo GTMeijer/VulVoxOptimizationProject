@@ -148,9 +148,9 @@ namespace vulvox
         sampler_info.minFilter = VK_FILTER_LINEAR;
 
         //How to handle when the surface is larger than the texture
-        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
         VkPhysicalDeviceProperties properties = vulkan_instance->get_physical_device_properties();
 
