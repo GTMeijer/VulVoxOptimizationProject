@@ -36,6 +36,7 @@ namespace vulvox
         void draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix);
         void draw_instanced(const std::string& model_name, const std::string& texture_name, const std::vector<glm::mat4>& model_matrices);
         void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices);
+        void draw_planes(const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices, const std::vector<glm::vec4>& min_max_uvs);
 
         bool framebuffer_resized = false;
 
@@ -56,8 +57,10 @@ namespace vulvox
 
         void create_instance_buffers();
         void create_instance_texture_buffers();
+        void create_instance_min_max_uvs_buffers();
         void copy_to_instance_buffer(const std::vector<glm::mat4>& model_matrices);
         void copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices);
+        void copy_to_instance_min_max_uvs_buffer(const std::vector<glm::vec4>& instance_min_max_uvs);
         void create_uniform_buffers();
 
         void create_descriptor_pool();
@@ -111,6 +114,7 @@ namespace vulvox
         VkPipeline instance_pipeline;
         VkPipeline instance_tex_array_pipeline;
         VkPipeline vertex_pipeline;
+        VkPipeline instance_plane_pipeline;
 
         ///Stuff that gets send to the shaders
 
@@ -135,6 +139,7 @@ namespace vulvox
 
         std::vector<Buffer> instance_data_buffers;
         std::vector<Buffer> instance_texture_index_buffers;
+        std::vector<Buffer> instance_min_max_uvs_buffers;
 
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;

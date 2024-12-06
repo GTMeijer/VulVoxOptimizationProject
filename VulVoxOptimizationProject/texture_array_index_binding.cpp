@@ -20,7 +20,7 @@ namespace vulvox
         attribute_description.binding = binding; //Source array binding index
         attribute_description.location = 7; //Location index in shader
         attribute_description.format = VK_FORMAT_R32_UINT;
-        attribute_description.offset = 0; //offset in bytes of texture_index in class Instance_Data
+        attribute_description.offset = 0; //offset in bytes of texture_index
 
         return attribute_description;
     }

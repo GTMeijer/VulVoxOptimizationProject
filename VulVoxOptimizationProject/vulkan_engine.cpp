@@ -55,6 +55,7 @@ namespace vulvox
         create_uniform_buffers();
         create_instance_buffers();
         create_instance_texture_buffers();
+        create_instance_min_max_uvs_buffers();
         create_descriptor_pool();
         create_descriptor_sets();
         create_sync_objects();
@@ -81,6 +82,7 @@ namespace vulvox
 
         cleanup_swap_chain();
 
+        vkDestroyPipeline(vulkan_instance.device, instance_plane_pipeline, nullptr);
         vkDestroyPipeline(vulkan_instance.device, vertex_pipeline, nullptr);
         vkDestroyPipeline(vulkan_instance.device, instance_pipeline, nullptr);
         vkDestroyPipeline(vulkan_instance.device, instance_tex_array_pipeline, nullptr);
@@ -130,6 +132,7 @@ namespace vulvox
         {
             instance_data_buffers[i].destroy(vulkan_instance.allocator);
             instance_texture_index_buffers[i].destroy(vulkan_instance.allocator);
+            instance_min_max_uvs_buffers[i].destroy(vulkan_instance.allocator);
         }
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -491,7 +494,7 @@ namespace vulvox
         //Bind the uniform buffers
         //Bind set 0, the MVP buffer
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
-        //Bind set 1, the texture
+        //Bind set 1, the textures
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_array_descriptor_sets.at(texture_array_name), 0, nullptr);
 
         //Binding point 0 - mesh vertex buffer
@@ -511,6 +514,42 @@ namespace vulvox
         //Render instances
         uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
         vkCmdDrawIndexed(current_command_buffer, models.at(model_name).index_count, instance_count, 0, 0, 0);
+    }
+
+    void Vulkan_Engine::draw_planes(const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices, const std::vector<glm::vec4>& min_max_uvs)
+    {
+        if (!texture_arrays.contains(texture_array_name))
+        {
+            std::cout << "No texture array with name " << texture_array_name << " is loaded, skipping draw call." << std::endl;
+            return;
+        }
+
+        copy_to_instance_buffer(model_matrices);
+        copy_to_instance_texture_buffer(texture_indices);
+        copy_to_instance_min_max_uvs_buffer(min_max_uvs);
+
+        std::array<VkDeviceSize, 1> offsets = { 0 };
+
+        //Bind the uniform buffers
+        //Bind set 0, the MVP buffer
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &descriptor_sets.instance_descriptor_set[current_frame], 0, nullptr);
+        //Bind set 1, the textures
+        vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_array_descriptor_sets.at(texture_array_name), 0, nullptr);
+
+        //Binding point 1 - instance data buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+
+        //Binding point 2 - texture array index buffer
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_texture_index_buffers[current_frame].buffer, offsets.data());
+
+        //Binding point 3 - texture min max uvs
+        vkCmdBindVertexBuffers(current_command_buffer, 3, 1, &instance_min_max_uvs_buffers[current_frame].buffer, offsets.data());
+
+        vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_plane_pipeline);
+
+        //Render instances
+        uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
+        vkCmdDraw(current_command_buffer, 6, instance_count, 0, 0);
     }
 
     void Vulkan_Engine::update_uniform_buffer(uint32_t current_image)
@@ -664,12 +703,15 @@ namespace vulvox
         std::filesystem::path instance_tex_array_vert_shader_filepath("../shaders/instance_tex_array_vert.spv");
         std::filesystem::path instance_tex_array_frag_shader_filepath("../shaders/instance_tex_array_frag.spv");
 
+        std::filesystem::path instance_plane_vert_shader_filepath("../shaders/instance_plane_vert.spv");
+
         Vulkan_Shader vert_shader{ vulkan_instance.device, vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
         Vulkan_Shader frag_shader{ vulkan_instance.device, frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
         Vulkan_Shader instance_vert_shader{ vulkan_instance.device, instance_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
         Vulkan_Shader instance_frag_shader{ vulkan_instance.device, instance_frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
         Vulkan_Shader instance_vert_tex_array_shader{ vulkan_instance.device, instance_tex_array_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
         Vulkan_Shader instance_frag_tex_array_shader{ vulkan_instance.device, instance_tex_array_frag_shader_filepath, "main", VK_SHADER_STAGE_FRAGMENT_BIT };
+        Vulkan_Shader instance_plane_vert_shader{ vulkan_instance.device, instance_plane_vert_shader_filepath, "main", VK_SHADER_STAGE_VERTEX_BIT };
 
         //Describes the configuration of the vertices the triangles and lines use
         VkPipelineInputAssemblyStateCreateInfo input_assembly_info{};
@@ -717,7 +759,7 @@ namespace vulvox
         rasterizer_info.rasterizerDiscardEnable = VK_FALSE; //If true, discards all geometery
         rasterizer_info.polygonMode = VK_POLYGON_MODE_FILL; //Full render, switch for wireframe or points (among others)
         rasterizer_info.lineWidth = 1.0f; //wider requires wideLines GPU feature
-        rasterizer_info.cullMode = VK_CULL_MODE_BACK_BIT; //Backface culling
+        rasterizer_info.cullMode = VK_CULL_MODE_NONE; //Backface culling
         rasterizer_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; //Counter clockwise vertex order determines the front (we flip the y axis)
         rasterizer_info.depthBiasEnable = VK_FALSE;
         rasterizer_info.depthBiasConstantFactor = 0.0f;
@@ -788,7 +830,7 @@ namespace vulvox
             //Binding point 1: Instanced data at per-instance rate
             Instance_Data::get_binding_description(1),
             //Binding point 2: Texture array index
-            Texture_Array_Index_Binding::get_binding_description(2)
+            Texture_Array_Index_Binding::get_binding_description(2),
         };
 
         //Vertex attribute bindings
@@ -857,7 +899,7 @@ namespace vulvox
 
         if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_pipeline) != VK_SUCCESS)
         {
-            throw std::runtime_error("Failed to create graphics pipeline!");
+            throw std::runtime_error("Failed to create instance graphics pipeline!");
         }
 
         //Per instance pipeline with texture array support
@@ -874,7 +916,7 @@ namespace vulvox
 
         if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_tex_array_pipeline) != VK_SUCCESS)
         {
-            throw std::runtime_error("Failed to create graphics pipeline!");
+            throw std::runtime_error("Failed to create instance with tex array graphics pipeline!");
         }
 
         ///Per vertex pipeline
@@ -892,7 +934,55 @@ namespace vulvox
 
         if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &vertex_pipeline) != VK_SUCCESS)
         {
-            throw std::runtime_error("Failed to create graphics pipeline!");
+            throw std::runtime_error("Failed to create vertex graphics pipeline!");
+        }
+
+        ///Plane pipeline
+
+        //Instance data format for planes
+        std::vector<VkVertexInputBindingDescription> plane_binding_descriptions =
+        {
+            //Binding point 1: Instanced data at per-instance rate
+            Instance_Data::get_binding_description(1),
+            //Binding point 2: Texture array index
+            Texture_Array_Index_Binding::get_binding_description(2),
+            //Binding point 3: Instanced plane data (min max uvs)
+            Plane_Instance_Data::get_binding_description(3)
+        };
+
+        //Per instance attributes for plane rendering
+        std::vector<VkVertexInputAttributeDescription> plane_attribute_descriptions;
+
+        for (const auto& i : Instance_Data::get_attribute_descriptions(1))
+        {
+            plane_attribute_descriptions.push_back(i);
+        }
+
+        plane_attribute_descriptions.push_back(Texture_Array_Index_Binding::get_attribute_description(2));
+
+
+        for (const auto& i : Plane_Instance_Data::get_attribute_descriptions(3))
+        {
+            plane_attribute_descriptions.push_back(i);
+        }
+
+        VkPipelineShaderStageCreateInfo plane_vert_shader_stage_info = instance_plane_vert_shader.get_shader_stage_create_info();
+        //Re-use the frag shader for instance with texture arrays
+        VkPipelineShaderStageCreateInfo plane_frag_shader_stage_info = instance_frag_tex_array_shader.get_shader_stage_create_info();
+
+        //The plane shader uses different bindings than the other shaders so we set them here
+        vertex_input_state_info.pVertexBindingDescriptions = plane_binding_descriptions.data(); //spacing between data and per vertex or per instance
+        vertex_input_state_info.pVertexAttributeDescriptions = plane_attribute_descriptions.data(); //attribute type, which bindings to load, and offset
+
+        shader_stages_info[0] = plane_vert_shader_stage_info;
+        shader_stages_info[1] = plane_frag_shader_stage_info;
+
+        vertex_input_state_info.vertexBindingDescriptionCount = static_cast<uint32_t>(plane_binding_descriptions.size());
+        vertex_input_state_info.vertexAttributeDescriptionCount = static_cast<uint32_t>(plane_attribute_descriptions.size());
+
+        if (vkCreateGraphicsPipelines(vulkan_instance.device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &instance_plane_pipeline) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Failed to create plane graphics pipeline!");
         }
     }
 
@@ -973,6 +1063,23 @@ namespace vulvox
         }
     }
 
+
+    void Vulkan_Engine::create_instance_min_max_uvs_buffers()
+    {
+        const int base_instance_count = 50;
+
+        VkDeviceSize instance_min_max_uvs_buffers_size = sizeof(glm::vec4) * base_instance_count;
+
+        //Create instance buffers as device only buffers
+        instance_min_max_uvs_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        {
+            instance_min_max_uvs_buffers[i].create(vulkan_instance, instance_min_max_uvs_buffers_size,
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        }
+    }
+
     void Vulkan_Engine::copy_to_instance_buffer(const std::vector<glm::mat4>& model_matrices)
     {
         size_t data_size = model_matrices.size() * sizeof(model_matrices[0]);
@@ -995,6 +1102,18 @@ namespace vulvox
         }
 
         memcpy(instance_texture_index_buffers[current_frame].allocation_info.pMappedData, instance_texture_indices.data(), data_size);
+    }
+
+    void Vulkan_Engine::copy_to_instance_min_max_uvs_buffer(const std::vector<glm::vec4>& instance_min_max_uvs)
+    {
+        size_t data_size = instance_min_max_uvs.size() * sizeof(glm::vec4);
+
+        if (data_size > instance_min_max_uvs_buffers[current_frame].size)
+        {
+            instance_min_max_uvs_buffers[current_frame].recreate(vulkan_instance, data_size);
+        }
+
+        memcpy(instance_min_max_uvs_buffers[current_frame].allocation_info.pMappedData, instance_min_max_uvs.data(), data_size);
     }
 
     void Vulkan_Engine::create_uniform_buffers()

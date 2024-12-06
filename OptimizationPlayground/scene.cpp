@@ -17,7 +17,7 @@ Scene::Scene(vulvox::Renderer& renderer) : renderer(&renderer)
     renderer.load_model("cube", CUBE_MODEL_PATH);
     renderer.load_texture("cube", CUBE_WHITE_TEXTURE_PATH);
 
-    std::vector<std::filesystem::path> texture_paths{ CUBE_WHITE_TEXTURE_PATH, CUBE_BLUE_TEXTURE_PATH };
+    std::vector<std::filesystem::path> texture_paths{ CUBE_WHITE_TEXTURE_PATH };
     renderer.load_texture_array("texture_array_test", texture_paths);
 
     konata_matrices.reserve(25);
@@ -88,7 +88,7 @@ void Scene::draw()
         {
             glm::mat4 pos = glm::translate(konata_matrix, glm::vec3(i * 75.f, 0.0f, j * 75.f));
 
-            renderer->draw_model("Konata", "Konata", pos);
+            //renderer->draw_model("Konata", "Konata", pos);
             //renderer->draw_model_with_texture_array("cube", "texture_array_test", 1, pos);
         }
     }
@@ -96,6 +96,15 @@ void Scene::draw()
 
 
     //renderer->draw_instanced("cube", "cube", konata_matrices);
-    renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
+    //renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
+
+    glm::mat4 instance_model_matrix{ glm::scale(konata_matrix, glm::vec3(5.f,5.f,5.f)) };
+    instance_model_matrix = glm::translate(instance_model_matrix, glm::vec3(0.f, 0.f, 0.f));
+
+
+    //std::cout << glm::to_string(instance_model_matrix);
+
+    renderer->draw_planes("texture_array_test", { instance_model_matrix }, { 0 }, { { 0.f, 2.f, 0.f,2.f } });
+
     //renderer->draw_model_with_texture_array("cube", "texture_array_test", 1, konata_matrix);
 }

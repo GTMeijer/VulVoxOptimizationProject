@@ -58,6 +58,11 @@ namespace vulvox
         vulkan_engine->draw_instanced_with_texture_array(model_name, texture_array_name, model_matrices, texture_indices);
     }
 
+    void Renderer::draw_planes(const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices, const std::vector<glm::vec4>& min_max_uvs)
+    {
+        vulkan_engine->draw_planes(texture_array_name, model_matrices, texture_indices, min_max_uvs);
+    }
+
     void Renderer::load_model(const std::string& model_name, const std::filesystem::path& path)
     {
         vulkan_engine->load_model(model_name, path);
