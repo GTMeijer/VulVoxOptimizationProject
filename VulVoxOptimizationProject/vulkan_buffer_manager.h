@@ -27,11 +27,25 @@ namespace vulvox
         Buffer& get_uniform_buffer(const uint32_t current_frame);
 
         /// <summary>
-        /// Get an instance buffer with at least instance_size * instance_count capacity.
+        /// Get index of an instance buffer with at least instance_size * instance_count capacity.
         /// </summary>
         /// <param name="current_frame">Index of the current swap_chain image.</param>
         /// <returns>Reference to an available buffer with at least instance_size * instance_count capacity.</returns>
-        Buffer& get_instance_buffer(const uint32_t current_frame, const VkDeviceSize instance_size, const VkDeviceSize instance_count);
+        size_t get_instance_buffer(const uint32_t current_frame, const VkDeviceSize instance_size, const VkDeviceSize instance_count);
+
+        Buffer& get_instance_buffer(const size_t buffer_index);
+
+        /// <summary>
+        /// Copy data to a instance buffer and returns the index of the buffer.
+        /// </summary>
+        template<typename T>
+        size_t copy_to_instance_buffer(Vulkan_Instance& instance, const uint32_t current_frame, const std::vector<T>& data)
+        {
+            size_t buffer_index = get_instance_buffer(current_frame, sizeof(T), data.size());
+            instance_buffers[buffer_index].copy_to_buffer(*vulkan_instance, data);
+
+            return buffer_index;
+        }
 
     private:
 
@@ -47,10 +61,6 @@ namespace vulvox
         /// Create extra instance buffers with given buffer size if current amount of instance buffers is less than the requested amount.
         /// </summary>
         void expand_instance_buffers(uint32_t required_buffers_per_frame, VkDeviceSize instance_buffer_size);
-
-        VkDevice device = VK_NULL_HANDLE;
-        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-        VmaAllocator allocator = VK_NULL_HANDLE;
 
         Vulkan_Instance* vulkan_instance = nullptr;
 

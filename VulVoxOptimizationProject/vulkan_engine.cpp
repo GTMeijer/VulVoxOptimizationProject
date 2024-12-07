@@ -436,8 +436,8 @@ namespace vulvox
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        Buffer& model_matrices_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::mat4), model_matrices.size());
-        model_matrices_buffer.copy_to_buffer(vulkan_instance, model_matrices);
+
+        size_t model_matrices_buffer = buffer_manager.copy_to_instance_buffer(vulkan_instance, current_frame, model_matrices);
 
         //Bind the uniform buffers
         //Bind set 0, the MVP buffer
@@ -449,7 +449,7 @@ namespace vulvox
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &model_matrices_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &buffer_manager.get_instance_buffer(model_matrices_buffer).buffer, offsets.data());
 
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -477,11 +477,8 @@ namespace vulvox
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        Buffer& model_matrices_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::mat4), model_matrices.size());
-        model_matrices_buffer.copy_to_buffer(vulkan_instance, model_matrices);
-
-        Buffer& texture_index_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(uint32_t), texture_indices.size());
-        texture_index_buffer.copy_to_buffer(vulkan_instance, texture_indices);
+        size_t model_matrices_buffer = buffer_manager.copy_to_instance_buffer(vulkan_instance, current_frame, model_matrices);
+        size_t texture_index_buffer = buffer_manager.copy_to_instance_buffer(vulkan_instance, current_frame, texture_indices);
 
         //Bind the uniform buffers
         //Bind set 0, the MVP buffer
@@ -493,10 +490,10 @@ namespace vulvox
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &model_matrices_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &buffer_manager.get_instance_buffer(model_matrices_buffer).buffer, offsets.data());
 
         //Binding point 2 - texture array index buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &texture_index_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &buffer_manager.get_instance_buffer(texture_index_buffer).buffer, offsets.data());
 
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -516,14 +513,9 @@ namespace vulvox
             return;
         }
 
-        Buffer& model_matrices_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::mat4), model_matrices.size());
-        model_matrices_buffer.copy_to_buffer(vulkan_instance, model_matrices);
-
-        Buffer& texture_index_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(uint32_t), texture_indices.size());
-        texture_index_buffer.copy_to_buffer(vulkan_instance, texture_indices);
-
-        Buffer& min_max_uv_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::vec4), min_max_uvs.size());
-        min_max_uv_buffer.copy_to_buffer(vulkan_instance, min_max_uvs);
+        size_t model_matrices_buffer = buffer_manager.copy_to_instance_buffer(vulkan_instance, current_frame, model_matrices);
+        size_t texture_index_buffer = buffer_manager.copy_to_instance_buffer(vulkan_instance, current_frame, texture_indices);
+        size_t min_max_uv_buffer = buffer_manager.copy_to_instance_buffer(vulkan_instance, current_frame, min_max_uvs);
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
@@ -534,13 +526,13 @@ namespace vulvox
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_array_descriptor_sets.at(texture_array_name), 0, nullptr);
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &model_matrices_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &buffer_manager.get_instance_buffer(model_matrices_buffer).buffer, offsets.data());
 
         //Binding point 2 - texture array index buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &texture_index_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &buffer_manager.get_instance_buffer(texture_index_buffer).buffer, offsets.data());
 
         //Binding point 3 - texture min max uvs
-        vkCmdBindVertexBuffers(current_command_buffer, 3, 1, &min_max_uv_buffer.buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 3, 1, &buffer_manager.get_instance_buffer(min_max_uv_buffer).buffer, offsets.data());
 
         vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_plane_pipeline);
 
@@ -552,7 +544,7 @@ namespace vulvox
     void Vulkan_Engine::update_uniform_buffer()
     {
         Buffer& uniform_buffer = buffer_manager.get_uniform_buffer(current_frame);
-        uniform_buffer.copy_to_buffer(vulkan_instance, &mvp_handler.model_view_projection);
+        uniform_buffer.copy_to_buffer(vulkan_instance, mvp_handler.model_view_projection);
     }
 
     void Vulkan_Engine::recreate_swap_chain()

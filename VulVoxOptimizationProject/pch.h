@@ -55,9 +55,9 @@
 #include "texture_array_index_binding.h"
 
 #include "vulkan_instance.h"
+#include "vulkan_buffer.h"
 #include "vulkan_swap_chain.h"
 #include "vulkan_command_pool.h"
-#include "vulkan_buffer.h"
 #include "vulkan_buffer_manager.h"
 #include "vulkan_image.h"
 

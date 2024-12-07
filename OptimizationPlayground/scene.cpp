@@ -88,17 +88,18 @@ void Scene::draw()
         {
             glm::mat4 pos = glm::translate(konata_matrix, glm::vec3(i * 75.f, 0.0f, j * 75.f));
 
-            //renderer->draw_model("Konata", "Konata", pos);
+            renderer->draw_model("Konata", "Konata", pos);
             //renderer->draw_model_with_texture_array("cube", "texture_array_test", 1, pos);
         }
     }
 
 
 
-    //renderer->draw_instanced("cube", "cube", konata_matrices);
-    //renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
+    renderer->draw_instanced("cube", "cube", konata_matrices);
+    renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
 
-    glm::mat4 instance_model_matrix{ glm::scale(konata_matrix, glm::vec3(5.f,5.f,5.f)) };
+    glm::mat4 instance_model_matrix{ 1.0f };
+    instance_model_matrix = glm::scale(instance_model_matrix, glm::vec3(5.f,5.f,5.f));
     instance_model_matrix = glm::translate(instance_model_matrix, glm::vec3(0.f, 0.f, 0.f));
 
 

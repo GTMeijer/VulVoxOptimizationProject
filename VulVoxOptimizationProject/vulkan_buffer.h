@@ -31,6 +31,7 @@ namespace vulvox
         template<typename T>
         void copy_to_buffer(Vulkan_Instance& instance, const T& data)
         {
+            static_assert(!std::is_pointer_v<T>, "copy_to_buffer called with a pointer as data, did you mean to pass the underlying data?");
             size_t data_size = sizeof(T);
 
             if (data_size > size)
