@@ -28,6 +28,22 @@ namespace vulvox
             }
         }
 
+        template<typename T>
+        void copy_to_buffer(Vulkan_Instance& instance, const T& data)
+        {
+            size_t data_size = sizeof(T);
+
+            if (data_size > size)
+            {
+                recreate(instance, data_size);
+            }
+
+            if (allocation_info.pMappedData != nullptr)
+            {
+                memcpy(allocation_info.pMappedData, &data, data_size);
+            }
+        }
+
         VkDeviceSize size;
         VkBufferUsageFlags usage_flags;
         VmaAllocationCreateFlags alloc_flags;

@@ -52,10 +52,8 @@ namespace vulvox
         create_depth_resources();
         create_framebuffers();
 
-        create_uniform_buffers();
-        create_instance_buffers();
-        create_instance_texture_buffers();
-        create_instance_min_max_uvs_buffers();
+        buffer_manager.init(&vulkan_instance, MAX_FRAMES_IN_FLIGHT);
+
         create_descriptor_pool();
         create_descriptor_sets();
         create_sync_objects();
@@ -90,14 +88,8 @@ namespace vulvox
         vkDestroyPipelineLayout(vulkan_instance.device, pipeline_layout, nullptr);
         vkDestroyRenderPass(vulkan_instance.device, render_pass, nullptr);
 
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            uniform_buffers[i].destroy(vulkan_instance.allocator);
-        }
-
         //Descriptor sets will be destroyed with the pool
         vkDestroyDescriptorPool(vulkan_instance.device, descriptor_pool, nullptr);
-
 
         //Texture cleanup
         for (auto& [name, texture] : textures)
@@ -114,7 +106,6 @@ namespace vulvox
 
         texture_arrays.clear();
 
-
         //Cleanup descriptor set layout and buffers
         vkDestroyDescriptorSetLayout(vulkan_instance.device, mvp_descriptor_set_layout, nullptr);
         vkDestroyDescriptorSetLayout(vulkan_instance.device, texture_descriptor_set_layout, nullptr);
@@ -127,13 +118,7 @@ namespace vulvox
 
         models.clear();
 
-        //Destroy instance buffers
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            instance_data_buffers[i].destroy(vulkan_instance.allocator);
-            instance_texture_index_buffers[i].destroy(vulkan_instance.allocator);
-            instance_min_max_uvs_buffers[i].destroy(vulkan_instance.allocator);
-        }
+        buffer_manager.destroy();
 
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
@@ -273,8 +258,11 @@ namespace vulvox
         //Reset fence *after* confirming the swapchain is valid (prevents deadlock)
         vkResetFences(vulkan_instance.device, 1, &in_flight_fences[current_frame]);
 
+        //Reset the instance buffer usage counter
+        buffer_manager.begin_frame();
+
         //Update global variables (camera etc.)
-        update_uniform_buffer(current_frame);
+        update_uniform_buffer();
 
         //Start recording a new command buffer for rendering
         current_command_buffer = command_pool.reset_command_buffer(current_frame);
@@ -385,7 +373,7 @@ namespace vulvox
 
     void Vulkan_Engine::draw_model_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const int texture_index, const glm::mat4& model_matrix)
     {
-        if (false)
+        if (true)
         {
             std::cout << "draw_model_with_texture_array is not yet supported." << std::endl;
             return;
@@ -448,7 +436,8 @@ namespace vulvox
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        copy_to_instance_buffer(model_matrices);
+        Buffer& model_matrices_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::mat4), model_matrices.size());
+        model_matrices_buffer.copy_to_buffer(vulkan_instance, model_matrices);
 
         //Bind the uniform buffers
         //Bind set 0, the MVP buffer
@@ -460,7 +449,7 @@ namespace vulvox
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &model_matrices_buffer.buffer, offsets.data());
 
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -488,8 +477,11 @@ namespace vulvox
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
-        copy_to_instance_buffer(model_matrices);
-        copy_to_instance_texture_buffer(texture_indices);
+        Buffer& model_matrices_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::mat4), model_matrices.size());
+        model_matrices_buffer.copy_to_buffer(vulkan_instance, model_matrices);
+
+        Buffer& texture_index_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(uint32_t), texture_indices.size());
+        texture_index_buffer.copy_to_buffer(vulkan_instance, texture_indices);
 
         //Bind the uniform buffers
         //Bind set 0, the MVP buffer
@@ -501,10 +493,10 @@ namespace vulvox
         vkCmdBindVertexBuffers(current_command_buffer, 0, 1, &models.at(model_name).vertex_buffer.buffer, offsets.data());
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &model_matrices_buffer.buffer, offsets.data());
 
         //Binding point 2 - texture array index buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_texture_index_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &texture_index_buffer.buffer, offsets.data());
 
         //Bind index buffer
         vkCmdBindIndexBuffer(current_command_buffer, models.at(model_name).index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
@@ -524,9 +516,14 @@ namespace vulvox
             return;
         }
 
-        copy_to_instance_buffer(model_matrices);
-        copy_to_instance_texture_buffer(texture_indices);
-        copy_to_instance_min_max_uvs_buffer(min_max_uvs);
+        Buffer& model_matrices_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::mat4), model_matrices.size());
+        model_matrices_buffer.copy_to_buffer(vulkan_instance, model_matrices);
+
+        Buffer& texture_index_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(uint32_t), texture_indices.size());
+        texture_index_buffer.copy_to_buffer(vulkan_instance, texture_indices);
+
+        Buffer& min_max_uv_buffer = buffer_manager.get_instance_buffer(current_frame, sizeof(glm::vec4), min_max_uvs.size());
+        min_max_uv_buffer.copy_to_buffer(vulkan_instance, min_max_uvs);
 
         std::array<VkDeviceSize, 1> offsets = { 0 };
 
@@ -537,13 +534,13 @@ namespace vulvox
         vkCmdBindDescriptorSets(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 1, 1, &texture_array_descriptor_sets.at(texture_array_name), 0, nullptr);
 
         //Binding point 1 - instance data buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &instance_data_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 1, 1, &model_matrices_buffer.buffer, offsets.data());
 
         //Binding point 2 - texture array index buffer
-        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &instance_texture_index_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 2, 1, &texture_index_buffer.buffer, offsets.data());
 
         //Binding point 3 - texture min max uvs
-        vkCmdBindVertexBuffers(current_command_buffer, 3, 1, &instance_min_max_uvs_buffers[current_frame].buffer, offsets.data());
+        vkCmdBindVertexBuffers(current_command_buffer, 3, 1, &min_max_uv_buffer.buffer, offsets.data());
 
         vkCmdBindPipeline(current_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, instance_plane_pipeline);
 
@@ -552,9 +549,10 @@ namespace vulvox
         vkCmdDraw(current_command_buffer, 6, instance_count, 0, 0);
     }
 
-    void Vulkan_Engine::update_uniform_buffer(uint32_t current_image)
+    void Vulkan_Engine::update_uniform_buffer()
     {
-        memcpy(uniform_buffers[current_image].allocation_info.pMappedData, &mvp_handler.model_view_projection, sizeof(mvp_handler.model_view_projection));
+        Buffer& uniform_buffer = buffer_manager.get_uniform_buffer(current_frame);
+        uniform_buffer.copy_to_buffer(vulkan_instance, &mvp_handler.model_view_projection);
     }
 
     void Vulkan_Engine::recreate_swap_chain()
@@ -1031,107 +1029,6 @@ namespace vulvox
         depth_image.create_image_view();
     }
 
-    void Vulkan_Engine::create_instance_buffers()
-    {
-        const int base_instance_count = 50;
-
-        VkDeviceSize instance_data_buffer_size = sizeof(glm::mat4) * base_instance_count;
-
-        //Create instance buffers as device only buffers
-        instance_data_buffers.resize(MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            instance_data_buffers[i].create(vulkan_instance, instance_data_buffer_size,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-        }
-    }
-
-    void Vulkan_Engine::create_instance_texture_buffers()
-    {
-        const int base_instance_count = 50;
-
-        VkDeviceSize instance_texture_index_buffers_size = sizeof(uint32_t) * base_instance_count;
-
-        //Create instance buffers as device only buffers
-        instance_texture_index_buffers.resize(MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            instance_texture_index_buffers[i].create(vulkan_instance, instance_texture_index_buffers_size,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-        }
-    }
-
-
-    void Vulkan_Engine::create_instance_min_max_uvs_buffers()
-    {
-        const int base_instance_count = 50;
-
-        VkDeviceSize instance_min_max_uvs_buffers_size = sizeof(glm::vec4) * base_instance_count;
-
-        //Create instance buffers as device only buffers
-        instance_min_max_uvs_buffers.resize(MAX_FRAMES_IN_FLIGHT);
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            instance_min_max_uvs_buffers[i].create(vulkan_instance, instance_min_max_uvs_buffers_size,
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-        }
-    }
-
-    void Vulkan_Engine::copy_to_instance_buffer(const std::vector<glm::mat4>& model_matrices)
-    {
-        size_t data_size = model_matrices.size() * sizeof(model_matrices[0]);
-
-        if (data_size > instance_data_buffers[current_frame].size)
-        {
-            instance_data_buffers[current_frame].recreate(vulkan_instance, data_size);
-        }
-
-        memcpy(instance_data_buffers[current_frame].allocation_info.pMappedData, model_matrices.data(), data_size);
-    }
-
-    void Vulkan_Engine::copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices)
-    {
-        size_t data_size = instance_texture_indices.size() * sizeof(uint32_t);
-
-        if (data_size > instance_texture_index_buffers[current_frame].size)
-        {
-            instance_texture_index_buffers[current_frame].recreate(vulkan_instance, data_size);
-        }
-
-        memcpy(instance_texture_index_buffers[current_frame].allocation_info.pMappedData, instance_texture_indices.data(), data_size);
-    }
-
-    void Vulkan_Engine::copy_to_instance_min_max_uvs_buffer(const std::vector<glm::vec4>& instance_min_max_uvs)
-    {
-        size_t data_size = instance_min_max_uvs.size() * sizeof(glm::vec4);
-
-        if (data_size > instance_min_max_uvs_buffers[current_frame].size)
-        {
-            instance_min_max_uvs_buffers[current_frame].recreate(vulkan_instance, data_size);
-        }
-
-        memcpy(instance_min_max_uvs_buffers[current_frame].allocation_info.pMappedData, instance_min_max_uvs.data(), data_size);
-    }
-
-    void Vulkan_Engine::create_uniform_buffers()
-    {
-        VkDeviceSize buffer_size = sizeof(MVP);
-
-        uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
-        uniform_buffers_mapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-        {
-            //Also maps pointer to memory so we can write to the buffer, this pointer is persistant throughout the applications lifetime.
-            uniform_buffers[i].create(vulkan_instance, buffer_size,
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
-        }
-    }
-
     /// <summary>
     /// This function creates a descriptor pool that holds the descriptor sets.
     /// Because this renderers usecase will not involve a lot of models we just create a single large pool.
@@ -1235,7 +1132,7 @@ namespace vulvox
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             VkDescriptorBufferInfo buffer_info{};
-            buffer_info.buffer = uniform_buffers[i].buffer;
+            buffer_info.buffer = buffer_manager.get_uniform_buffer(i).buffer;
             buffer_info.offset = 0;
             buffer_info.range = sizeof(MVP);
 
@@ -1270,7 +1167,7 @@ namespace vulvox
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
             VkDescriptorBufferInfo buffer_info{};
-            buffer_info.buffer = uniform_buffers[i].buffer;
+            buffer_info.buffer = buffer_manager.get_uniform_buffer(i).buffer;
             buffer_info.offset = 0;
             buffer_info.range = sizeof(MVP);
 

@@ -3,15 +3,15 @@
 
 namespace vulvox
 {
-    void Buffer::create(Vulkan_Instance& instance, VkDeviceSize size, VkBufferUsageFlags usage, VmaAllocationCreateFlags alloc_flags)
+    void Buffer::create(Vulkan_Instance& instance, VkDeviceSize buffer_size, VkBufferUsageFlags usage, VmaAllocationCreateFlags buffer_alloc_flags)
     {
-        this->size = size;
+        this->size = buffer_size;
         this->usage_flags = usage;
-        this->alloc_flags = alloc_flags;
+        this->alloc_flags = buffer_alloc_flags;
 
         VkBufferCreateInfo buffer_info{};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = size;
+        buffer_info.size = buffer_size;
         buffer_info.usage = usage;
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE; //Only used by graphics queue
         buffer_info.flags = 0;

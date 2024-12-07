@@ -42,7 +42,7 @@ namespace vulvox
 
     private:
 
-        void update_uniform_buffer(uint32_t current_image);
+        void update_uniform_buffer();
 
         //Swap chain recreation functions
         void recreate_swap_chain();
@@ -54,14 +54,6 @@ namespace vulvox
 
         //Depth test setup functions
         void create_depth_resources(); //Depth buffer resources
-
-        void create_instance_buffers();
-        void create_instance_texture_buffers();
-        void create_instance_min_max_uvs_buffers();
-        void copy_to_instance_buffer(const std::vector<glm::mat4>& model_matrices);
-        void copy_to_instance_texture_buffer(const std::vector<uint32_t>& instance_texture_indices);
-        void copy_to_instance_min_max_uvs_buffer(const std::vector<glm::vec4>& instance_min_max_uvs);
-        void create_uniform_buffers();
 
         void create_descriptor_pool();
         void create_mvp_descriptor_set_layout(); //Describes mvp uniform buffers
@@ -118,9 +110,7 @@ namespace vulvox
 
         ///Stuff that gets send to the shaders
 
-        //Uniform buffers, data available across shaders
-        std::vector<Buffer> uniform_buffers;
-        std::vector<void*> uniform_buffers_mapped;
+
 
         //Descriptor pool and sets, 
         //holds the binding information that connects the shader inputs to the data
@@ -137,9 +127,8 @@ namespace vulvox
         //Image used for depth testing
         Image depth_image;
 
-        std::vector<Buffer> instance_data_buffers;
-        std::vector<Buffer> instance_texture_index_buffers;
-        std::vector<Buffer> instance_min_max_uvs_buffers;
+        //Manages all the uniform and instance buffers
+        Vulkan_Buffer_Manager buffer_manager;
 
         std::unordered_map<std::string, Model> models;
         std::unordered_map<std::string, Image> textures;
