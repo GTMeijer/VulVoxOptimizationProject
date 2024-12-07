@@ -126,6 +126,7 @@
     </ClCompile>
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="texture_array_index_binding.cpp" />
+    <ClCompile Include="vulkan_buffer_manager.cpp" />
     <ClCompile Include="vulkan_command_pool.cpp" />
     <ClCompile Include="vulkan_engine.cpp" />
     <ClCompile Include="vulkan_shader.cpp" />
@@ -143,6 +144,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="texture_array_index_binding.h" />
+    <ClInclude Include="vulkan_buffer_manager.h" />
     <ClInclude Include="vulkan_command_pool.h" />
     <ClInclude Include="vulkan_engine.h" />
     <ClInclude Include="vulkan_shader.h" />
