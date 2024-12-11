@@ -21,13 +21,15 @@ layout(location = 1) out vec3 frag_texture_coordinate;
 void main() {
 
     //hardcoded positions and texcoords for a unit square (two triangles)
-    vec2 vertices[6] = vec2[](
+    vec2 vertices[6] = vec2[]
+    (
         vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(0.0, 1.0),
         vec2(1.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)
     );
-    vec2 texcoords[6] = vec2[](
-        vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(0.0, 1.0),
-        vec2(1.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0)
+    vec2 texcoords[6] = vec2[]
+    (
+        vec2(0.0, 1.0), vec2(1.0, 1.0), vec2(0.0, 0.0),
+        vec2(1.0, 1.0), vec2(1.0, 0.0), vec2(0.0, 0.0)
     );
 
     vec2 vertex = vertices[gl_VertexIndex];
@@ -37,7 +39,13 @@ void main() {
     gl_Position = mvp.projection * mvp.view * mvp.model * instance_model_matrix * vec4(vertex, 0.0, 1.0);
 
     //compute texture coordinates
-    frag_texture_coordinate = vec3(mix(instance_uv_min, instance_uv_max, texcoord), instance_texture_index);
+    //vec2 uv_min = vec2(0,0);
+    //vec2 uv_max = vec2(1,1);
+    //vec2 uv = mix(uv_min, uv_max, texcoord);
+    vec2 uv = mix(instance_uv_min, instance_uv_max, texcoord);
+    frag_texture_coordinate = vec3(uv, float(instance_texture_index));
+    //frag_texture_coordinate = vec3(mix(instance_uv_min, instance_uv_max, texcoord), instance_texture_index);
+
 
     frag_color = vec3(1,1,1);
 }

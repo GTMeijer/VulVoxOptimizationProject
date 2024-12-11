@@ -69,13 +69,13 @@ void Camera::move_down(float distance)
 void Camera::rotate_left(float speed)
 {
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), speed * glm::radians(1.f), glm::vec3(0.0f, 1.0f, 0.0f));
-    direction = rotation * glm::vec4(direction, 1.0f);
+    set_direction(rotation * glm::vec4(direction, 1.0f));
 }
 
 void Camera::rotate_right(float speed)
 {
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0f), -speed * glm::radians(1.f), glm::vec3(0.0f, 1.0f, 0.0f));
-    direction = rotation * glm::vec4(direction, 1.0f);
+    set_direction(rotation * glm::vec4(direction, 1.0f));
 }
 
 void Camera::set_direction(glm::vec3 new_direction)

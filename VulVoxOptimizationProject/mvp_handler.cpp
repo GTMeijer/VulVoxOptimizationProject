@@ -51,7 +51,7 @@ namespace vulvox
     void MVP_Handler::update_projection_matrix()
     {
         glm::mat4 projection_matrix = glm::perspective(field_of_view, aspect_ratio, near_plane, far_plane);
-        projection_matrix[1][1] *= -1; //Invert y-axis so its compatible with Vulkan axes
+        projection_matrix[1][1] *= -1.f; //Invert y-axis so its compatible with Vulkan axes
         model_view_projection.projection = projection_matrix;
     }
 }

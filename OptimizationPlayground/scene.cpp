@@ -3,9 +3,9 @@
 
 Scene::Scene(vulvox::Renderer& renderer) : renderer(&renderer)
 {
-    glm::vec3 camera_pos{ 0.0f, 0.0f, 0.0f };
+    glm::vec3 camera_pos{ 5.0f, 5.0f, 15.0f };
     glm::vec3 camera_up{ 0.0f, 1.0f, 0.0f };
-    glm::vec3 camera_direction{ 0.0f, 0.0f, 1.0f };
+    glm::vec3 camera_direction{ 0.0f, 0.0f, -1.0f };
 
     camera = Camera(camera_pos, camera_up, camera_direction);
 
@@ -82,21 +82,22 @@ void Scene::update(float delta_time)
 
 void Scene::draw()
 {
-    for (size_t i = 0; i < 5; i++)
-    {
-        for (size_t j = 0; j < 5; j++)
-        {
-            glm::mat4 pos = glm::translate(konata_matrix, glm::vec3(i * 75.f, 0.0f, j * 75.f));
+    
+    //for (size_t i = 0; i < 5; i++)
+    //{
+    //    for (size_t j = 0; j < 5; j++)
+    //    {
+    //        glm::mat4 pos = glm::translate(konata_matrix, glm::vec3(i * 75.f, 0.0f, j * 75.f));
 
-            renderer->draw_model("Konata", "Konata", pos);
-            //renderer->draw_model_with_texture_array("cube", "texture_array_test", 1, pos);
-        }
-    }
+    //        renderer->draw_model("Konata", "Konata", pos);
+    //        //renderer->draw_model_with_texture_array("cube", "texture_array_test", 1, pos);
+    //    }
+    //}
 
 
 
-    renderer->draw_instanced("cube", "cube", konata_matrices);
-    renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
+    //renderer->draw_instanced("cube", "cube", konata_matrices);
+    //renderer->draw_instanced_with_texture_array("cube", "texture_array_test", konata_matrices, texture_indices);
 
     glm::mat4 instance_model_matrix{ 1.0f };
     instance_model_matrix = glm::scale(instance_model_matrix, glm::vec3(5.f,5.f,5.f));
@@ -105,7 +106,8 @@ void Scene::draw()
 
     //std::cout << glm::to_string(instance_model_matrix);
 
-    renderer->draw_planes("texture_array_test", { instance_model_matrix }, { 0 }, { { 0.f, 2.f, 0.f,2.f } });
-
+    //renderer->draw_planes("texture_array_test", { instance_model_matrix }, { 0 }, { { 0.f, 2.f, 0.f,2.f } });
+    renderer->draw_planes("texture_array_test", { instance_model_matrix }, { 0 }, { {0.f, 0.f, 2.f, 2.f} });
+    
     //renderer->draw_model_with_texture_array("cube", "texture_array_test", 1, konata_matrix);
 }

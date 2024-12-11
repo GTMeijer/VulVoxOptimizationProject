@@ -52,7 +52,7 @@ namespace vulvox
         attribute_descriptions[1].binding = binding; //Source array binding index
         attribute_descriptions[1].location = 9; //Location index in shader, 9
         attribute_descriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-        attribute_descriptions[1].offset = sizeof(glm::uint32_t); //Byte offset relative to the start of the object
+        attribute_descriptions[1].offset = sizeof(glm::vec2); //Byte offset relative to the start of the object
 
         return attribute_descriptions;
     }
