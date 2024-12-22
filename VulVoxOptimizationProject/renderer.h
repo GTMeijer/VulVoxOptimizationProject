@@ -1,6 +1,6 @@
 #pragma once
 
-//Uses Unique_Ptr to vulkan_engine to hide implementation details (pimpl pattern)
+#include <functional>
 
 namespace vulvox
 {
@@ -14,6 +14,21 @@ namespace vulvox
 
         void init(uint32_t width, uint32_t height, float field_of_view, float near_plane, float far_plane);
         void destroy();
+
+        /// <summary>
+        /// For a basic (debugging) ui you can init dear imgui.
+        /// </summary>
+        void init_imgui();
+
+        /// <summary>
+        /// Disables imgui if initialized, destroys all imgui data.
+        /// </summary>
+        void disable_imgui();
+
+        void set_dark_theme();
+        void set_light_theme();
+
+        void set_imgui_callback(std::function<void()> callback);
 
         /// <summary>
         /// Checks if a close command was given to the window, indicating the program should shutdown.
@@ -52,6 +67,7 @@ namespace vulvox
 
     private:
 
+        //Uses Unique_Ptr to vulkan_engine to hide implementation details (pimpl pattern)
         std::unique_ptr<Vulkan_Engine> vulkan_engine;
     };
 

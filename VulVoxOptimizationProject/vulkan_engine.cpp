@@ -68,6 +68,21 @@ namespace vulvox
         is_initialized = true;
     }
 
+    void Vulkan_Engine::init_imgui()
+    {
+        imgui_context = std::make_unique<ImGui_Context>(window, vulkan_instance, render_pass, MAX_FRAMES_IN_FLIGHT);
+    }
+
+    void Vulkan_Engine::disable_imgui()
+    {
+        imgui_context.reset();
+    }
+
+    ImGui_Context* Vulkan_Engine::get_imgui_context() const
+    {
+        return imgui_context.get();
+    }
+
     void Vulkan_Engine::destroy()
     {
         if (!is_initialized)
@@ -77,6 +92,11 @@ namespace vulvox
 
         //Wait until all operations are completed before cleanup
         vkDeviceWaitIdle(vulkan_instance.device);
+
+        if (imgui_context)
+        {
+            imgui_context.reset();
+        }
 
         cleanup_swap_chain();
 
@@ -273,6 +293,11 @@ namespace vulvox
 
     void Vulkan_Engine::end_draw()
     {
+        if (imgui_context)
+        {
+            imgui_context->render_ui(current_command_buffer);
+        }
+
         //Complete the command buffer before submitting it and presenting the image
         end_record_command_buffer();
 
@@ -539,6 +564,11 @@ namespace vulvox
         //Render instances
         uint32_t instance_count = static_cast<uint32_t>(model_matrices.size());
         vkCmdDraw(current_command_buffer, 6, instance_count, 0, 0);
+    }
+
+    bool Vulkan_Engine::initialized() const
+    {
+        return is_initialized;
     }
 
     void Vulkan_Engine::update_uniform_buffer()
@@ -1035,7 +1065,7 @@ namespace vulvox
         //Limits for a common GPU are >1mil, for our use we probably wont exceed 512 textures 
         //(if we do we could consider making a manager class in the future)
         pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        pool_sizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 512; 
+        pool_sizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) * 512;
 
         VkDescriptorPoolCreateInfo pool_info{};
         pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;

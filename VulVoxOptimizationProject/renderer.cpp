@@ -23,6 +23,49 @@ namespace vulvox
         vulkan_engine->destroy();
     }
 
+    void Renderer::init_imgui()
+    {
+        if (!vulkan_engine->initialized())
+        {
+            std::cout << "Initialize the renderer before initializing imgui!" << std::endl;
+            return;
+        }
+
+        vulkan_engine->init_imgui();
+    }
+
+    void Renderer::disable_imgui()
+    {
+        vulkan_engine->disable_imgui();
+    }
+
+    void Renderer::set_dark_theme()
+    {
+        auto imgui_context = vulkan_engine->get_imgui_context();
+        if (imgui_context)
+        {
+            imgui_context->set_dark_theme();
+        }
+    }
+
+    void Renderer::set_light_theme()
+    {
+        auto imgui_context = vulkan_engine->get_imgui_context();
+        if (imgui_context)
+        {
+            imgui_context->set_light_theme();
+        }
+    }
+
+    void Renderer::set_imgui_callback(std::function<void()> callback)
+    {
+        auto imgui_context = vulkan_engine->get_imgui_context();
+        if (imgui_context)
+        {
+            imgui_context->set_imgui_callback(callback);
+        }
+    }
+
     bool Renderer::should_close() const
     {
         return glfwWindowShouldClose(vulkan_engine->get_glfw_window_ptr());

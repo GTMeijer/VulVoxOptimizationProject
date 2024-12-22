@@ -47,6 +47,11 @@
 //Vulkan memory allocator for easier memory management
 #include <vk_mem_alloc.h>
 
+//Dear ImGui
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "imgui/imgui_impl_vulkan.h"
+
 #include "utils.h"
 #include "vertex.h"
 #include "mvp.h"
@@ -63,5 +68,7 @@
 
 #include "model.h"
 #include "vulkan_shader.h"
+
+#include "imgui_context.h"
 
 #include "vulkan_engine.h"

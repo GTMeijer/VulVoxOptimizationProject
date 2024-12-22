@@ -25,3 +25,13 @@ static std::vector<char> read_file(const std::filesystem::path& file_path)
 
     return buffer;
 }
+
+static void check_vk_result(VkResult err)
+{
+    if (err == 0)
+        return;
+    std::cout << "[vulkan] Error: VkResult = " << err << std::endl;
+    //fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
+    if (err < 0)
+        abort();
+}

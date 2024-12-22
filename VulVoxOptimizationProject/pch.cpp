@@ -14,5 +14,4 @@
     } while(false)
 #endif // DEBUG
 
-
 #include <vk_mem_alloc.h>

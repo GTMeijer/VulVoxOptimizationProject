@@ -8,11 +8,14 @@ namespace vulvox
         Vulkan_Engine();
         ~Vulkan_Engine();
 
-
         void init_window(uint32_t width, uint32_t height);
         void init_vulkan();
 
         void init(uint32_t width, uint32_t height);
+
+        void init_imgui();
+        void disable_imgui();
+        ImGui_Context* get_imgui_context() const;
 
         void destroy();
 
@@ -38,6 +41,8 @@ namespace vulvox
         void draw_instanced_with_texture_array(const std::string& model_name, const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices);
         void draw_planes(const std::string& texture_array_name, const std::vector<glm::mat4>& model_matrices, const std::vector<uint32_t>& texture_indices, const std::vector<glm::vec4>& min_max_uvs);
 
+        bool initialized() const;
+
         bool framebuffer_resized = false;
 
     private:
@@ -53,7 +58,7 @@ namespace vulvox
         void create_framebuffers();
 
         //Depth test setup functions
-        void create_depth_resources(); //Depth buffer resources
+        void create_depth_resources();
 
         void create_descriptor_pool();
         void create_mvp_descriptor_set_layout(); //Describes mvp uniform buffers
@@ -137,6 +142,9 @@ namespace vulvox
         std::unordered_map<std::string, Image> texture_arrays;
 
         MVP_Handler mvp_handler;
+
+        //Optional user interface
+        std::unique_ptr<ImGui_Context> imgui_context;
 
         //We don't want to wait for the previous frame to finish while processing the next frame,
         //so we create double the amount of buffers so we can overlap frame processing
