@@ -289,13 +289,19 @@ namespace vulvox
 
         // Start recording the command buffer and wait for draw calls
         start_record_command_buffer();
+
+        if (imgui_context)
+        {
+            imgui_context->start_imgui_frame();
+        }
+        
     }
 
     void Vulkan_Engine::end_draw()
     {
         if (imgui_context)
         {
-            imgui_context->render_ui(current_command_buffer);
+            imgui_context->render_and_end_imgui_frame(current_command_buffer);
         }
 
         //Complete the command buffer before submitting it and presenting the image

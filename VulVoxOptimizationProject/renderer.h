@@ -17,6 +17,9 @@ namespace vulvox
 
         /// <summary>
         /// For a basic (debugging) ui you can init Dear ImGui.
+        /// This will start an imgui frame when calling start_draw() and render it when calling end_draw().
+        /// Make sure you call the imgui functions within these two calls.
+        /// Alternatively you can register a callback function that handles all the ui logic (see set_imgui_callback).
         /// </summary>
         void init_imgui();
 
@@ -28,6 +31,11 @@ namespace vulvox
         void set_dark_theme();
         void set_light_theme();
 
+        /// <summary>
+        /// Sets a callback function that will automatically be called at the end of the frame.
+        /// Use this callback function to handle your ui logic.
+        /// </summary>
+        /// <param name="callback"></param>
         void set_imgui_callback(std::function<void()> callback);
 
         /// <summary>

@@ -8,17 +8,17 @@ namespace vulvox
         ImGui_Context(GLFWwindow* glfw_window, vulvox::Vulkan_Instance& vulkan_instance, VkRenderPass render_pass, const int max_swapchain_images);
         ~ImGui_Context();
 
-        void render_ui(VkCommandBuffer current_command_buffer);
 
         void set_imgui_callback(std::function<void()>& callback);
 
         void set_dark_theme();
         void set_light_theme();
 
-    private:
-
         void start_imgui_frame();
-        void end_imgui_frame(VkCommandBuffer current_command_buffer);
+        void render_and_end_imgui_frame(VkCommandBuffer current_command_buffer);
+
+
+    private:
 
         std::function<void()> imgui_callback;
 

@@ -59,19 +59,12 @@ namespace vulvox
         ImGui::NewFrame();
     }
 
-    void ImGui_Context::render_ui(VkCommandBuffer current_command_buffer)
+    void ImGui_Context::render_and_end_imgui_frame(VkCommandBuffer current_command_buffer)
     {
-        start_imgui_frame();
-
         if (imgui_callback) {
             imgui_callback();
         }
 
-        end_imgui_frame(current_command_buffer);
-    }
-
-    void ImGui_Context::end_imgui_frame(VkCommandBuffer current_command_buffer)
-    {
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), current_command_buffer);
     }
