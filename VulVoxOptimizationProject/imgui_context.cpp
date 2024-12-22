@@ -17,7 +17,11 @@ namespace vulvox
         pool_info.poolSizeCount = 1;
         pool_info.pPoolSizes = &pool_sizes;
 
-        vkCreateDescriptorPool(vulkan_instance.device, &pool_info, nullptr, &descriptor_pool);
+
+        if (vkCreateDescriptorPool(vulkan_instance.device, &pool_info, nullptr, &descriptor_pool) != VK_SUCCESS)
+        {
+            throw std::runtime_error("Imgui initialization failed, Descriptor pool creation failed!");
+        }
 
         //Setup Dear ImGui context
         IMGUI_CHECKVERSION();
