@@ -16,7 +16,7 @@ namespace vulvox
         void destroy();
 
         /// <summary>
-        /// For a basic (debugging) ui you can init dear imgui.
+        /// For a basic (debugging) ui you can init Dear ImGui.
         /// </summary>
         void init_imgui();
 
