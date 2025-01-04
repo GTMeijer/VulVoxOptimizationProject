@@ -27,8 +27,18 @@ namespace vulvox
         const char** glfw_extensions;
         glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
-        create_info.enabledExtensionCount = glfw_extension_count;
-        create_info.ppEnabledExtensionNames = glfw_extensions;
+        std::vector<const char*> requiredExtensions;
+
+        for (uint32_t i = 0; i < glfw_extension_count; i++) {
+            requiredExtensions.emplace_back(glfw_extensions[i]);
+        }
+
+        requiredExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
+        create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+
+        create_info.enabledExtensionCount = (uint32_t)requiredExtensions.size();
+        create_info.ppEnabledExtensionNames = requiredExtensions.data();
 
         if (enableValidationLayers)
         {
