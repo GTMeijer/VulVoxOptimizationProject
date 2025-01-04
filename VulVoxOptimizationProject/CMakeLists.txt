@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-file(GLOB SOURCE_FILES "*.cpp")
+file(GLOB_RECURSE SOURCE_FILES "*.cpp")
 
 add_library(VulVoxOptimizationProject STATIC ${SOURCE_FILES})
 
