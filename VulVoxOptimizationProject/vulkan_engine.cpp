@@ -810,13 +810,14 @@ namespace vulvox
         depth_stencil.depthTestEnable = VK_TRUE; //Discard fragment is they fail depth test
         depth_stencil.depthWriteEnable = VK_TRUE; //Write passed depth tests to the depth buffer
         depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL; //Write closer results to the depth buffer
-        depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS; //Back face culling
         depth_stencil.depthBoundsTestEnable = VK_FALSE;
         depth_stencil.minDepthBounds = 0.0f; // Optional
         depth_stencil.maxDepthBounds = 1.0f; // Optional
         depth_stencil.stencilTestEnable = VK_FALSE;
         depth_stencil.front = {}; // Optional
         depth_stencil.back = {}; // Optional
+        //depth_stencil.back.compareOp = VK_COMPARE_OP_ALWAYS; //Back face culling
+
 
         //Handle color blending of the fragments (for example alpha blending) (disabled)
         VkPipelineColorBlendAttachmentState color_blend_attachement_info{};
@@ -824,13 +825,14 @@ namespace vulvox
         color_blend_attachement_info.blendEnable = VK_TRUE; //Blend activated for transparency
         //use standard blend equation:
         //Color: SrcColor * SrcAlpha + DstColor * (1 - SrcAlpha)
-        //Alpha: SrcAlpha* SrcAlpha + DstAlpha * (1 - SrcAlpha)
-        color_blend_attachement_info.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; //Optional
-        color_blend_attachement_info.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; //Optional
-        color_blend_attachement_info.colorBlendOp = VK_BLEND_OP_ADD; //Optional
-        color_blend_attachement_info.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA; //Optional
-        color_blend_attachement_info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA; //Optional
-        color_blend_attachement_info.alphaBlendOp = VK_BLEND_OP_ADD; //Optional
+        color_blend_attachement_info.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        color_blend_attachement_info.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        color_blend_attachement_info.colorBlendOp = VK_BLEND_OP_ADD;
+        color_blend_attachement_info.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; //Keep source alpha
+        color_blend_attachement_info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        //color_blend_attachement_info.srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        //color_blend_attachement_info.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        color_blend_attachement_info.alphaBlendOp = VK_BLEND_OP_ADD;
 
         VkPipelineColorBlendStateCreateInfo color_blending_info{};
         color_blending_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
