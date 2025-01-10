@@ -10,6 +10,11 @@ namespace vulvox
             throw std::runtime_error("validation layers requested, but not available!");
         }
 
+        uint32_t api_version_support;
+        vkEnumerateInstanceVersion(&api_version_support);
+
+        std::cout << "Driver supported Vulkan version: " << VK_API_VERSION_MAJOR(api_version_support) << "." << VK_API_VERSION_MINOR(api_version_support) << "\n" << std::endl;
+
         VkApplicationInfo app_info{};
         app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         app_info.pApplicationName = "Vulkan"; //Application name, doesnt do much (title is in glfw)
@@ -104,7 +109,7 @@ namespace vulvox
         {
             int device_rating = rate_physical_device(surface, device_candidate);
 
-            std::cout << i << ": " << get_physical_device_name(device_candidate) << "\t" << get_physical_device_type(device_candidate) << "\t" << "Score: " << device_rating << "\n";
+            std::cout << i << ": " << get_physical_device_name(device_candidate) << "\t" << get_physical_device_type(device_candidate) << "\t Vulkan version: " << get_physical_device_vulkan_support(device_candidate) << "\t Score: " << device_rating << "\n";
 
             device_candidates.insert(std::make_pair(rate_physical_device(surface, device_candidate), device_candidate));
 
@@ -472,6 +477,24 @@ namespace vulvox
         }
     }
 
+    /// <summary>
+    /// Retrieves a string containing the supported Vulkan version
+    /// </summary>
+    /// <param name="physical_device"></param>
+    /// <returns></returns>
+    std::string Vulkan_Instance::get_physical_device_vulkan_support(const VkPhysicalDevice& physical_device) const
+    {
+        VkPhysicalDeviceProperties device_properties;
+        vkGetPhysicalDeviceProperties(physical_device, &device_properties);
+
+        uint32_t deviceApiVersion = device_properties.apiVersion;
+
+        uint32_t major = VK_VERSION_MAJOR(deviceApiVersion);
+        uint32_t minor = VK_VERSION_MINOR(deviceApiVersion);
+
+        return std::string(std::to_string(major) + "." + std::to_string(minor));
+    }
+
     void Vulkan_Instance::init_instance()
     {
         create_instance();
@@ -631,6 +654,51 @@ namespace vulvox
         }
 
         throw std::runtime_error("Failed to find suitable memory type!");
+    }
+
+    std::string Vulkan_Instance::get_memory_statistics() const
+    {
+        VkPhysicalDeviceMemoryProperties memory_properties = get_physical_memory_device_properties();
+
+        std::vector<VmaBudget> budgets{};
+        budgets.resize(memory_properties.memoryHeapCount);
+
+        vmaGetHeapBudgets(allocator, budgets.data());
+
+
+        // Create a stringstream to build the statistics table
+        std::stringstream statistics;
+        statistics << std::left << std::setw(15) << "Heap Index"
+            << std::setw(15) << "Heap Type"
+            << std::setw(20) << "Allocated (MB)"
+            << std::setw(20) << "Reserved (MB)"
+            << std::setw(20) << "Total (MB)"
+            << "\n";
+
+        statistics << std::string(80, '-') << "\n";
+
+        // Loop through all heaps
+        for (uint32_t i = 0; i < memory_properties.memoryHeapCount; i++)
+        {
+            bool isDeviceLocal = memory_properties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT;
+            std::string heapType = isDeviceLocal ? "Device Local" : "Host Visible";
+
+            const VmaBudget& budget = budgets[i];
+
+            // Convert values to MB for readability
+            float used_memory_MB = (float)budget.statistics.allocationBytes / (1024.0f * 1024.0f); 
+            float reserved_MB = (float)budget.statistics.blockBytes / (1024.0f * 1024.0f);
+            float total_memory_MB = (float)budget.budget / (1024.0f * 1024.0f); 
+
+            statistics << std::setw(15) << i
+                << std::setw(15) << heapType
+                << std::setw(20) << std::fixed << std::setprecision(2) << used_memory_MB
+                << std::setw(20) << reserved_MB
+                << std::setw(20) << total_memory_MB
+                << "\n";
+        }
+
+        return statistics.str();
     }
 
     bool Queue_Family_Indices::is_complete() const

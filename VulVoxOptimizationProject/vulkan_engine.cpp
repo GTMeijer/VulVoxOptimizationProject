@@ -278,6 +278,10 @@ namespace vulvox
         //Reset fence *after* confirming the swapchain is valid (prevents deadlock)
         vkResetFences(vulkan_instance.device, 1, &in_flight_fences[current_frame]);
 
+        //Tell our memory allocator a new frame has started (useful for optimization)
+        //The 2nd argument is the current swapchain index (this is badly documented online)
+        vmaSetCurrentFrameIndex(vulkan_instance.allocator, current_frame);
+
         //Reset the instance buffer usage counter
         buffer_manager.begin_frame();
 
@@ -294,7 +298,7 @@ namespace vulvox
         {
             imgui_context->start_imgui_frame();
         }
-        
+
     }
 
     void Vulkan_Engine::end_draw()
@@ -575,6 +579,11 @@ namespace vulvox
     bool Vulkan_Engine::initialized() const
     {
         return is_initialized;
+    }
+
+    std::string Vulkan_Engine::get_memory_statistics() const
+    {
+        return vulkan_instance.get_memory_statistics();
     }
 
     void Vulkan_Engine::update_uniform_buffer()

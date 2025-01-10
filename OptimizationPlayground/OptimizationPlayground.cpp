@@ -35,9 +35,10 @@ int main()
             scene.update(delta_time);
 
             renderer.start_draw();
-            renderer.set_imgui_callback([&slider_value]() {
+            renderer.set_imgui_callback([&renderer, &slider_value]() {
                 ImGui::Begin("Demo Window");
                 ImGui::Text("Hello, ImGui!");
+                ImGui::Text(renderer.get_memory_statistics().c_str());
                 ImGui::SliderFloat("Slider", &slider_value, 0.0f, 1.0f);
                 ImGui::End();
                 });

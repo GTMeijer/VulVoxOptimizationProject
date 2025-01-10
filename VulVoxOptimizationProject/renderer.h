@@ -73,6 +73,8 @@ namespace vulvox
         void resize_window(const uint32_t new_width, const uint32_t new_height);
         float get_aspect_ratio() const;
 
+        std::string get_memory_statistics() const;
+
     private:
 
         //Uses Unique_Ptr to vulkan_engine to hide implementation details (pimpl pattern)

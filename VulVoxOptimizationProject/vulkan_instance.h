@@ -57,6 +57,8 @@ namespace vulvox
 
         uint32_t find_memory_type(uint32_t type_filter, VkMemoryPropertyFlags properties) const;
 
+        std::string get_memory_statistics() const;
+
         //Vulkan and device contexts
         VkInstance instance = VK_NULL_HANDLE; //Vulkan context (driver access)
         VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -91,6 +93,7 @@ namespace vulvox
 
         std::string get_physical_device_name(const VkPhysicalDevice& physical_device) const;
         std::string get_physical_device_type(const VkPhysicalDevice& physical_device) const;
+        std::string get_physical_device_vulkan_support(const VkPhysicalDevice& physical_device) const;
 
         //Required device extensions
         const std::vector<const char*> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };

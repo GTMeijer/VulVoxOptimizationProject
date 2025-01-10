@@ -45,6 +45,8 @@ namespace vulvox
 
         bool framebuffer_resized = false;
 
+        std::string get_memory_statistics() const;
+
     private:
 
         void update_uniform_buffer();

@@ -179,4 +179,8 @@ namespace vulvox
     {
         return vulkan_engine->get_mvp_handler().get_aspect_ratio();
     }
+    std::string Renderer::get_memory_statistics() const
+    {
+        return vulkan_engine->get_memory_statistics();
+    }
 }
