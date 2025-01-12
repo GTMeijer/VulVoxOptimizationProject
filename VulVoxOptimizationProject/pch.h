@@ -18,6 +18,7 @@
 #include <limits>
 #include <algorithm>
 #include <fstream>
+#include <sstream>
 #include <filesystem>
 
 //GLFW & Vulkan
