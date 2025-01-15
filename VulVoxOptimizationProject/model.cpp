@@ -34,8 +34,12 @@ namespace vulvox
 
         std::unordered_map<Vertex, uint32_t> unique_vertices{};
 
+        size_t face_count = 0;
+
         for (const auto& shape : shapes)
         {
+            face_count += shape.mesh.num_face_vertices.size();
+
             for (const auto& index : shape.mesh.indices)
             {
                 Vertex vertex{};
@@ -64,6 +68,7 @@ namespace vulvox
                 }
 
                 indices.push_back(unique_vertices[vertex]);
+
             }
         }
 
@@ -76,7 +81,7 @@ namespace vulvox
         create_vertex_buffer(command_pool, vertices);
         create_index_buffer(command_pool, indices);
 
-        std::cout << "Model loaded containing " << vertices.size() << " vertices and " << indices.size() << " indices." << std::endl;
+        std::cout << "Model " << path_to_model.filename() << " loaded containing " << face_count << " triangles with " << vertices.size() << " vertices and " << indices.size() << " indices." << std::endl;
     }
 
     void Model::create_vertex_buffer(Vulkan_Command_Pool& command_pool, const std::vector<Vertex>& vertices)
