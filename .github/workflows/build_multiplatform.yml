@@ -114,6 +114,15 @@ jobs:
       - name: Build project (debug)
         run: cmake --build build/debug/ --config Debug
 
+      - name: List files in release directory
+        run: ls -R build/release/
+
+      - name: List files in debug directory
+        run: ls -R build/debug/
+
+      - name: List files in build directory
+        run: ls -R build/
+
       #Upload release build as artifact
       - uses: actions/upload-artifact@v4
         with:
