@@ -127,10 +127,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: mac-release-artifact
-          path: .build/release/libVulVoxOptimizationProject.a
+          path: build/release/libVulVoxOptimizationProject.a
           
       #Upload release build as artifact
       - uses: actions/upload-artifact@v4
         with:
           name: mac-debug-artifact
-          path: .build/debug/libVulVoxOptimizationProject.a
+          path: build/debug/libVulVoxOptimizationProject.a
