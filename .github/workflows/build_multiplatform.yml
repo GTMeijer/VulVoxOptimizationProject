@@ -102,14 +102,26 @@ jobs:
       - name: Install glfw
         run: brew install glfw
       
-      - name: Create build directory
-        run: cmake -S VulVoxOptimizationProject/ -B build/ -D CMAKE_BUILD_TYPE=Release
+      - name: Create build directory (release)
+        run: cmake -S VulVoxOptimizationProject/ -B build/release/ -D CMAKE_BUILD_TYPE=Release
 
-      - name: Build project
-        run: cmake --build build/ --config Release
+      - name: Build project (release)
+        run: cmake --build build/release/ --config Release
+
+      - name: Create build directory (debug)
+        run: cmake -S VulVoxOptimizationProject/ -B build/debug/ -D CMAKE_BUILD_TYPE=Debug
+
+      - name: Build project (debug)
+        run: cmake --build build/debug/ --config Debug
 
       #Upload release build as artifact
       - uses: actions/upload-artifact@v4
         with:
           name: mac-release-artifact
-          path: ./build/libVulVoxOptimizationProject.a
+          path: .build/release/libVulVoxOptimizationProject.a
+          
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-debug-artifact
+          path: .build/debug/libVulVoxOptimizationProject.a
