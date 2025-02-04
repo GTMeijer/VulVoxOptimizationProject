@@ -150,7 +150,7 @@ namespace vulvox
 
         //We don't want to wait for the previous frame to finish while processing the next frame,
         //so we create double the amount of buffers so we can overlap frame processing
-        static const int MAX_FRAMES_IN_FLIGHT = 2;
+        static const int MAX_FRAMES_IN_FLIGHT;
         uint32_t current_frame = 0;
     };
 
