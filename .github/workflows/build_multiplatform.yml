@@ -7,18 +7,55 @@ jobs:
   release-windows:
     runs-on: windows-latest
     name: Build on Windows-latest
+    env:
+      VULKAN_SDK_VERSION: ""
+      VULKAN_SDK_INSTALLER: ""
+      VERSION_URL: "https://vulkan.lunarg.com/sdk/latest/windows.txt"
+      SDK_URL: ""
     steps:
       #checkout code
       - name: Checkout code
         id: checkout_code
         uses: actions/checkout@v4
-  
+
       #Setup Vulkan SDK
-      - name: Install Vulkan SDK
-        uses: humbletim/install-vulkan-sdk@v1.2
-        with:
-         version: latest
-         cache: true
+      - name: Check Vulkan SDK Version
+        shell: bash
+        run: |
+          echo "retrieving latest version from url: $VERSION_URL"
+          VULKAN_SDK_VERSION=$(curl -sL $VERSION_URL)
+          echo "latest version for Windows is: $VULKAN_SDK_VERSION"
+          echo "VULKAN_SDK_VERSION=$VULKAN_SDK_VERSION" >> $GITHUB_ENV
+
+      # Download and install Vulkan SDK (Windows)
+      - name: Download and install Vulkan SDK
+        shell: bash
+        run: |
+          if [ -z "$VULKAN_SDK_VERSION" ]; then
+            echo "VULKAN_SDK_VERSION not set"
+            exit 1
+          fi
+
+          SDK_URL="https://sdk.lunarg.com/sdk/download/$VULKAN_SDK_VERSION/windows/vulkan_sdk.exe?Human=true"
+          echo "Downloading Vulkan SDK $VULKAN_SDK_VERSION from $SDK_URL"
+
+          curl -L -o vulkan_sdk.exe "$SDK_URL"
+
+          if [ ! -f "./vulkan_sdk.exe" ]; then
+            echo "vulkan_sdk.exe was not downloaded correctly."
+            exit 1
+          fi
+
+          echo "Installing Vulkan SDK..."
+          # run the Windows installer from bash
+          ./vulkan_sdk.exe --accept-licenses --default-answer --confirm-command install
+
+          VULKAN_SDK=$(pwsh -Command "(Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment').VULKAN_SDK")
+
+          echo "Resolved installed VULKAN_SDK=$VULKAN_SDK"
+          echo "VULKAN_SDK=$VULKAN_SDK" >> "$GITHUB_ENV"
+          
+          echo "Vulkan SDK installed
   
       #Locate MSBuild.eze and add to PATH
       - name: Add MSBuild to PATH
