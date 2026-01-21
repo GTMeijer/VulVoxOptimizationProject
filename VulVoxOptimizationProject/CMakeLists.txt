@@ -68,7 +68,8 @@ elseif(UNIX)
             "${INCLUDE_DIR}/VulkanMemoryAllocator-3.1.0/include"
     )
 
-    target_link_libraries(VulVoxOptimizationProject
+    target_link_libraries(
+	VulVoxOptimizationProject
         Vulkan::Vulkan
         glfw
         pthread #For threading support

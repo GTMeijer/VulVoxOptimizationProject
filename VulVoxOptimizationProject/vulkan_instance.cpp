@@ -38,10 +38,13 @@ namespace vulvox
             requiredExtensions.emplace_back(glfw_extensions[i]);
         }
 
+
+#ifdef __APPLE_
+        //On MacOS we need to add the following extension check and set the portability flag
         requiredExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
         create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-
+#endif
         create_info.enabledExtensionCount = (uint32_t)requiredExtensions.size();
         create_info.ppEnabledExtensionNames = requiredExtensions.data();
 
@@ -686,9 +689,9 @@ namespace vulvox
             const VmaBudget& budget = budgets[i];
 
             // Convert values to MB for readability
-            float used_memory_MB = (float)budget.statistics.allocationBytes / (1024.0f * 1024.0f); 
+            float used_memory_MB = (float)budget.statistics.allocationBytes / (1024.0f * 1024.0f);
             float reserved_MB = (float)budget.statistics.blockBytes / (1024.0f * 1024.0f);
-            float total_memory_MB = (float)budget.budget / (1024.0f * 1024.0f); 
+            float total_memory_MB = (float)budget.budget / (1024.0f * 1024.0f);
 
             statistics << std::setw(15) << i
                 << std::setw(15) << heapType
