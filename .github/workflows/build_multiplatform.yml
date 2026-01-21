@@ -57,12 +57,24 @@ jobs:
           
           echo "Vulkan SDK installed"
   
-      #Locate MSBuild.eze and add to PATH
+      #Locate MSBuild.exe and add to PATH
       - name: Add MSBuild to PATH
         id: setup_msbuild
         uses: microsoft/setup-msbuild@v2
         with:
           msbuild-architecture: x64
+
+      #Run MSBuild Debug
+      - name: Run MSBuild Debug
+        id: run_msbuild_debug
+        working-directory: .\
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=Debug -property:Platform=x64
+  
+      #Upload debug build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-debug-artifact
+          path: x64/Debug
          
       #Run MSBuild Release
       - name: Run MSBuild Release
@@ -75,6 +87,30 @@ jobs:
         with:
           name: windows-release-artifact
           path: x64/Release
+
+      #Run MSBuild Debug compat
+      - name: Run MSBuild Debug Compat
+        id: run_msbuild_debug_compat
+        working-directory: .\
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=DebugCompat -property:Platform=x64
+  
+      #Upload debug compat build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-debug-compat-artifact
+          path: x64/DebugCompat
+         
+      #Run MSBuild Release Compat
+      - name: Run MSBuild Release Compat
+        id: run_msbuild_release_compat
+        working-directory: .\
+        run: msbuild.exe .\ -t:VulVoxOptimizationProject -property:Configuration=ReleaseCompat -property:Platform=x64
+  
+      #Upload release build as artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-compat-artifact
+          path: x64/ReleaseCompat
   
   release-macOS:
     runs-on: macos-latest
