@@ -55,7 +55,7 @@ jobs:
           echo "Resolved installed VULKAN_SDK=$VULKAN_SDK"
           echo "VULKAN_SDK=$VULKAN_SDK" >> "$GITHUB_ENV"
           
-          echo "Vulkan SDK installed
+          echo "Vulkan SDK installed"
   
       #Locate MSBuild.eze and add to PATH
       - name: Add MSBuild to PATH
