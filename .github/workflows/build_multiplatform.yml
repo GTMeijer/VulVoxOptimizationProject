@@ -87,7 +87,7 @@ jobs:
           VULKAN_SDK_INSTALLER=${{env.VULKAN_SDK_INSTALLER}}
           VULKAN_SDK=$PWD/VULKAN_SDK
           echo "Installing from unzipped folder: $VULKAN_SDK_INSTALLER"
-          sudo $VULKAN_SDK_INSTALLER/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
+          sudo $VULKAN_SDK_INSTALLER/InstallVulkan.app/Contents/MacOS/vulkansdk-macOS-$VULKAN_SDK_VERSION --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
           echo "Cleaning installer files"
           sudo rm -rf "$VULKAN_SDK_INSTALLER"
           #Check install
@@ -183,7 +183,7 @@ jobs:
           VULKAN_SDK_INSTALLER=${{env.VULKAN_SDK_INSTALLER}}
           VULKAN_SDK=$PWD/VULKAN_SDK
           echo "Installing from unzipped folder: $VULKAN_SDK_INSTALLER"
-          sudo $VULKAN_SDK_INSTALLER/InstallVulkan.app/Contents/MacOS/InstallVulkan --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
+          sudo $VULKAN_SDK_INSTALLER/InstallVulkan.app/Contents/MacOS/vulkansdk-macOS-$VULKAN_SDK_VERSION --root "$VULKAN_SDK" --accept-licenses --default-answer --confirm-command install
           echo "Cleaning installer files"
           sudo rm -rf "$VULKAN_SDK_INSTALLER"
           #Check install
